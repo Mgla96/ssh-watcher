@@ -17,11 +17,13 @@ const (
 	stateFile = "/tmp/authlog-state"
 )
 
+type EventType string
+
 // Event mapping
 const (
-	LoggedIn                          string = "logged in"
-	FailedLoginAttempt                       = "failed login attempt"
-	FailedLoginAttemptInvalidUsername        = "failed login attempt with invalid username"
+	LoggedIn                          EventType = "logged in"
+	FailedLoginAttempt                EventType = "failed login attempt"
+	FailedLoginAttemptInvalidUsername EventType = "failed login attempt with invalid username"
 )
 
 type LogWatcher struct {
@@ -108,7 +110,7 @@ func ParseLogLine(line string) notifier.LogLine {
 	logLine := notifier.LogLine{}
 	if strings.Contains(line, "sshd") {
 		if strings.Contains(line, "Accepted password") || strings.Contains(line, "Accepted publickey") {
-			logLine.EventType = LoggedIn
+			logLine.EventType = string(LoggedIn)
 		}
 		// else if strings.Contains(line, "Failed password") || strings.Contains(line, "Connection closed by authenticating user") {
 		// 	logLine.EventType = FailedLoginAttempt
