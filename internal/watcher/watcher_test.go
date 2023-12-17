@@ -126,7 +126,42 @@ func TestParseLogLine(t *testing.T) {
 		args args
 		want notifier.LogLine
 	}{
-		// TODO: Add test cases.
+		{
+			name: "accepted password",
+			args: args{
+				line: "Dec 1 10:0:0 fake sshd[0000]: Accepted password for foo from 1.2.3.4 port 57000 ssh2",
+			},
+			want: notifier.LogLine{
+				Username:  "foo",
+				IpAddress: "1.2.3.4",
+				LoginTime: "Dec 1",
+				EventType: notifier.LoggedIn,
+			},
+		},
+		{
+			name: "failed password",
+			args: args{
+				line: "Dec 1 10:0:0 fake sshd[0000]: Failed password for foo from 1.2.3.4 port 57000 ssh2",
+			},
+			want: notifier.LogLine{
+				Username:  "foo",
+				IpAddress: "1.2.3.4",
+				LoginTime: "Dec 1",
+				EventType: notifier.FailedLoginAttempt,
+			},
+		},
+		{
+			name: "invalid user",
+			args: args{
+				line: "Dec 1 10:0:0 fake sshd[0000]: Failed password for invalid user bar from 1.2.3.4 port 57000 ssh2",
+			},
+			want: notifier.LogLine{
+				Username:  "bar",
+				IpAddress: "1.2.3.4",
+				LoginTime: "Dec 1",
+				EventType: notifier.FailedLoginAttemptInvalidUsername,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

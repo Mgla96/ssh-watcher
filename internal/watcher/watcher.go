@@ -127,10 +127,10 @@ func ParseLogLine(line string) notifier.LogLine {
 		switch {
 		case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
 			logLine.EventType = notifier.LoggedIn
-		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
-			logLine.EventType = notifier.FailedLoginAttempt
 		case strings.Contains(strings.ToLower(line), "invalid user"):
 			logLine.EventType = notifier.FailedLoginAttemptInvalidUsername
+		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
+			logLine.EventType = notifier.FailedLoginAttempt
 		}
 
 		if logLine.EventType != "" {
