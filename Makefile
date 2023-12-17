@@ -1,4 +1,4 @@
-.PHONY: lint test
+.PHONY: lint test build
 
 lint:
 	golangci-lint run
@@ -8,3 +8,6 @@ test:
 
 coverage:
 	GOWORK=off go test ./... -coverprofile=coverage.out
+
+build:
+	go build -o ssh-watcher ./cmd/ssh-watcher
