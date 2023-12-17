@@ -99,7 +99,7 @@ func (w LogWatcher) updateLastProcessedLine(lineNumber int) error {
 	return nil
 }
 
-// TODO(mgottlieb) refactor this into more unit-testable funcs
+// TODO(mgottlieb) refactor this into more unit-testable funcs.
 func (w LogWatcher) Watch() {
 	file, err := os.Open(w.LogFile)
 	if err != nil {
