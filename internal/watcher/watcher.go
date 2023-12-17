@@ -45,6 +45,60 @@ func (w LogWatcher) shouldSendMessage(eventType notifier.EventType) bool {
 	}
 }
 
+// getLastProcessedLine reads the statefile and extracts the last processed line number
+// in the ssh log file.
+func (w LogWatcher) getLastProcessedLine() int {
+	if _, err := os.Stat(stateFile); os.IsNotExist(err) {
+		return 0
+	}
+
+	state, err := os.Open(stateFile)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed opening state file")
+		return 0
+	}
+	defer state.Close()
+
+	scanner := bufio.NewScanner(state)
+	var currentLine int
+	for scanner.Scan() {
+		currentLine, err = strconv.Atoi(scanner.Text())
+		if err != nil {
+			log.Error().Err(err).Msg("Failed converting state file line to int")
+			return 0
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Error().Err(err).Msg("Error while reading state file")
+		return 0
+	}
+
+	return currentLine
+
+}
+
+func (w LogWatcher) updateLastProcessedLine(lineNumber int) error {
+	state, err := os.Create(stateFile)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to create or truncate state file")
+		return err
+	}
+	defer state.Close()
+
+	if _, err := state.WriteString(fmt.Sprintf("%d", lineNumber)); err != nil {
+		log.Error().Err(err).Msg("Failed to write to state file")
+		return err
+	}
+
+	if err := state.Sync(); err != nil {
+		log.Error().Err(err)
+		return err
+	}
+
+	return nil
+}
+
 // TODO(mgottlieb) refactor this into more unit-testable funcs
 func (w LogWatcher) Watch() {
 	currentSize := 0
@@ -61,29 +115,12 @@ func (w LogWatcher) Watch() {
 		}
 
 		if stat.Size() > int64(currentSize) {
-			var currentLine int
-
-			if _, err := os.Stat(stateFile); err == nil {
-				state, err := os.Open(stateFile)
-				if err != nil {
-					log.Fatal().Err(err)
-				}
-				defer state.Close()
-
-				scanner := bufio.NewScanner(state)
-				for scanner.Scan() {
-					currentLine, err = strconv.Atoi(scanner.Text())
-					if err != nil {
-						log.Fatal().Err(err)
-					}
-				}
-
-			}
+			lastProcessedLine := w.getLastProcessedLine()
 
 			scanner := bufio.NewScanner(file)
 			scanner.Split(bufio.ScanLines)
 			for i := 0; scanner.Scan(); i++ {
-				if i <= currentLine {
+				if i <= lastProcessedLine {
 					continue
 				}
 				line := scanner.Text()
