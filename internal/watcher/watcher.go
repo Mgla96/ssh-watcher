@@ -14,16 +14,9 @@ import (
 )
 
 const (
+	// stateFile keeps track of the last processed line by ssh watcher so restarts
+	// of the service do not reprocess all ssh history.
 	stateFile = "/tmp/authlog-state"
-)
-
-type EventType string
-
-// Event mapping
-const (
-	LoggedIn                          EventType = "logged in"
-	FailedLoginAttempt                EventType = "failed login attempt"
-	FailedLoginAttemptInvalidUsername EventType = "failed login attempt with invalid username"
 )
 
 type WatchSettings struct {
@@ -37,6 +30,19 @@ type LogWatcher struct {
 	Notifier      notifier.Notifier
 	HostMachine   string
 	WatchSettings WatchSettings
+}
+
+func (w LogWatcher) shouldSendMessage(logLine notifier.LogLine) bool {
+	switch {
+	case logLine.EventType == notifier.LoggedIn && w.WatchSettings.WatchAcceptedLogins:
+		return true
+	case logLine.EventType == notifier.FailedLoginAttempt && w.WatchSettings.WatchFailedLogins:
+		return true
+	case logLine.EventType == notifier.FailedLoginAttemptInvalidUsername && w.WatchSettings.WatchFailedLoginInvalidUsername:
+		return true
+	default:
+		return false
+	}
 }
 
 // TODO(mgottlieb) refactor this into more unit-testable funcs
@@ -56,6 +62,7 @@ func (w LogWatcher) Watch() {
 
 		if stat.Size() > int64(currentSize) {
 			var currentLine int
+
 			if _, err := os.Stat(stateFile); err == nil {
 				state, err := os.Open(stateFile)
 				if err != nil {
@@ -82,9 +89,7 @@ func (w LogWatcher) Watch() {
 				line := scanner.Text()
 				logLine := ParseLogLine(line)
 
-				// TODO(mgottlieb) handle filtering notifications based
-				// on watch settings
-				if logLine.EventType == string(LoggedIn) {
+				if w.shouldSendMessage(logLine) {
 					if err := w.Notifier.Notify(logLine); err != nil {
 						log.Error().Err(err)
 						continue
@@ -121,11 +126,11 @@ func ParseLogLine(line string) notifier.LogLine {
 	if strings.Contains(line, "sshd") {
 		switch {
 		case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
-			logLine.EventType = string(LoggedIn)
+			logLine.EventType = notifier.LoggedIn
 		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
-			logLine.EventType = string(FailedLoginAttempt)
+			logLine.EventType = notifier.FailedLoginAttempt
 		case strings.Contains(strings.ToLower(line), "invalid user"):
-			logLine.EventType = string(FailedLoginAttemptInvalidUsername)
+			logLine.EventType = notifier.FailedLoginAttemptInvalidUsername
 		}
 
 		if logLine.EventType != "" {
