@@ -26,12 +26,20 @@ const (
 	FailedLoginAttemptInvalidUsername EventType = "failed login attempt with invalid username"
 )
 
-type LogWatcher struct {
-	LogFile     string
-	Notifier    notifier.Notifier
-	HostMachine string
+type WatchSettings struct {
+	WatchAcceptedLogins             bool
+	WatchFailedLogins               bool
+	WatchFailedLoginInvalidUsername bool
 }
 
+type LogWatcher struct {
+	LogFile       string
+	Notifier      notifier.Notifier
+	HostMachine   string
+	WatchSettings WatchSettings
+}
+
+// TODO(mgottlieb) refactor this into more unit-testable funcs
 func (w LogWatcher) Watch() {
 	currentSize := 0
 	for {
@@ -47,7 +55,6 @@ func (w LogWatcher) Watch() {
 		}
 
 		if stat.Size() > int64(currentSize) {
-			// Read the current line number from the state file
 			var currentLine int
 			if _, err := os.Stat(stateFile); err == nil {
 				state, err := os.Open(stateFile)
@@ -74,15 +81,18 @@ func (w LogWatcher) Watch() {
 				}
 				line := scanner.Text()
 				logLine := ParseLogLine(line)
-				if logLine.EventType != "" {
-					if err := w.Notifier.Notify(logLine.Username, logLine.IpAddress, logLine.LoginTime, logLine.EventType, w.HostMachine); err != nil {
+
+				// TODO(mgottlieb) handle filtering notifications based
+				// on watch settings
+				if logLine.EventType == string(LoggedIn) {
+					if err := w.Notifier.Notify(logLine); err != nil {
 						log.Error().Err(err)
 						continue
 					} else {
 						log.Info().Msg("Posted message to slack")
 					}
 				}
-				// Update the current line number in the state file
+
 				state, err := os.Create(stateFile)
 				if err != nil {
 					log.Error().Err(err)
@@ -109,14 +119,15 @@ func (w LogWatcher) Watch() {
 func ParseLogLine(line string) notifier.LogLine {
 	logLine := notifier.LogLine{}
 	if strings.Contains(line, "sshd") {
-		if strings.Contains(line, "Accepted password") || strings.Contains(line, "Accepted publickey") {
+		switch {
+		case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
 			logLine.EventType = string(LoggedIn)
+		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
+			logLine.EventType = string(FailedLoginAttempt)
+		case strings.Contains(strings.ToLower(line), "invalid user"):
+			logLine.EventType = string(FailedLoginAttemptInvalidUsername)
 		}
-		// else if strings.Contains(line, "Failed password") || strings.Contains(line, "Connection closed by authenticating user") {
-		// 	logLine.EventType = FailedLoginAttempt
-		// } else if strings.Contains(strings.ToLower(line), "invalid user") {
-		// 	logLine.EventType = FailedLoginAttemptInvalidUsername
-		// }
+
 		if logLine.EventType != "" {
 			parts := strings.Split(line, " ")
 			logLine.LoginTime = parts[0] + " " + parts[1]

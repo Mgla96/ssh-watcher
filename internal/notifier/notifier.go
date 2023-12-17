@@ -1,7 +1,7 @@
 package notifier
 
 type Notifier interface {
-	Notify(username, ipAddress, loginTime, eventType, hostMachine string) error
+	Notify(LogLine LogLine) error
 }
 
 type LogLine struct {

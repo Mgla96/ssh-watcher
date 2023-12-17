@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 	"github.com/mgla96/ssh-watcher/internal/watcher"
@@ -10,28 +11,105 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	defaultSlackChannel                           = "#ssh-alerts"
+	defaultSlackUsername                          = "poe-ssh-bot"
+	defaultSlackIcon                              = ":ghost:"
+	defaultLogFileLocation                        = "/var/log/auth.log"
+	defaultWatchAcceptedLogins                    = true
+	defaultWatchFailedLogins                      = false
+	defaultWatchFailedLoginInvalidUsername        = false
+	envKeyHostUrl                                 = "HOST_URL"
+	envKeySlackWebhookUrl                         = "SLACK_WEBHOOK_URL"
+	envKeySlackChannel                            = "SLACK_CHANNEL"
+	envKeySlackUsername                           = "SLACK_USERNAME"
+	envKeySlackIcon                               = "SLACK_ICON"
+	envKeyWatchLogfile                            = "WATCH_LOGFILE"
+	envKeyWatchSettingsAcceptedLogin              = "WATCH_SETTINGS_ACCEPTED_LOGIN"
+	envKeyWatchSettingsFailedLogin                = "WATCH_SETTINGS_FAILED_LOGIN"
+	envKeyWatchSettingsFailedLoginInvalidUsername = "WATCH_SETTINGS_FAILED_LOGIN_INVALID_USERNAME"
+)
+
+type Config struct {
+	HostUrl                         string
+	WebhookUrl                      string
+	SlackChannel                    string
+	SlackUsername                   string
+	SlackIcon                       string
+	LogFileLocation                 string
+	WatchAcceptedLogin              bool
+	WatchFailedLogin                bool
+	WatchFailedLoginInvalidUsername bool
+}
+
+func loadConfig() Config {
+	c := Config{}
+
+	c.HostUrl = getEnvOrPanic(envKeyHostUrl)
+	c.WebhookUrl = getEnvOrPanic(envKeySlackWebhookUrl)
+
+	c.SlackChannel = getEnvOrDefault(envKeySlackChannel, defaultSlackChannel)
+	c.SlackUsername = getEnvOrDefault(envKeySlackUsername, defaultSlackUsername)
+	c.SlackIcon = getEnvOrDefault(envKeySlackIcon, defaultSlackIcon)
+	c.LogFileLocation = getEnvOrDefault(envKeyWatchLogfile, defaultLogFileLocation)
+
+	c.WatchAcceptedLogin = parseBoolEnv(envKeyWatchSettingsAcceptedLogin, defaultWatchAcceptedLogins)
+	c.WatchFailedLogin = parseBoolEnv(envKeyWatchSettingsFailedLogin, defaultWatchFailedLogins)
+	c.WatchFailedLoginInvalidUsername = parseBoolEnv(envKeyWatchSettingsFailedLoginInvalidUsername, defaultWatchFailedLoginInvalidUsername)
+
+	return c
+}
+
+func getEnvOrPanic(key string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		panic(fmt.Sprintf("%s not set", key))
+	}
+	return value
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		log.Warn().Msgf("%s not set, defaulting to %s", key, defaultValue)
+		return defaultValue
+	}
+	return value
+}
+
+func parseBoolEnv(key string, defaultValue bool) bool {
+	valueStr := os.Getenv(key)
+	value, err := strconv.ParseBool(valueStr)
+	if err != nil {
+		log.Warn().Msgf("%s not parsable, defaulting to %t", key, defaultValue)
+		return defaultValue
+	}
+	return value
+}
+
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Info().Msg("Starting watcher")
 
-	hostUrl := os.Getenv("HOST_URL")
-	webhookUrl := os.Getenv("SLACK_WEBHOOK_URL")
+	config := loadConfig()
+
 	notifier := notifier.SlackNotifier{
-		WebhookURL:    webhookUrl,
-		SlackChannel:  "#ssh-alerts",
-		SlackUsername: "poe-ssh-bot",
-		SlackIcon:     ":ghost:",
+		WebhookURL:    config.WebhookUrl,
+		SlackChannel:  config.SlackChannel,
+		SlackUsername: config.SlackUsername,
+		SlackIcon:     config.SlackIcon,
+	}
+	watcher := watcher.LogWatcher{
+		LogFile:     config.LogFileLocation,
+		Notifier:    notifier,
+		HostMachine: config.HostUrl,
+		WatchSettings: watcher.WatchSettings{
+			WatchAcceptedLogins:             config.WatchAcceptedLogin,
+			WatchFailedLogins:               config.WatchFailedLogin,
+			WatchFailedLoginInvalidUsername: config.WatchFailedLoginInvalidUsername,
+		},
 	}
 
-	logFileLocation := os.Getenv("WATCH_LOGFILE")
-	if len(logFileLocation) == 0 {
-		logFileLocation = "/var/log/auth.log"
-	}
-	log.Info().Msg(fmt.Sprintf("webhook url: %s, logfile: %s", webhookUrl, logFileLocation))
-	watcher := watcher.LogWatcher{
-		LogFile:     logFileLocation,
-		Notifier:    notifier,
-		HostMachine: hostUrl,
-	}
+	log.Info().Msg(fmt.Sprintf("starting watcher, webhook url: %s, logfile: %s", config.WebhookUrl, config.LogFileLocation))
 	watcher.Watch()
 }

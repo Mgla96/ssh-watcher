@@ -17,18 +17,10 @@ type SlackNotifier struct {
 	SlackIcon     string
 }
 
-func (s SlackNotifier) Notify(username, ipAddress, loginTime, eventType, hostMachine string) error {
-	log.Info().Msg(fmt.Sprintf("Sending notification to slack: User %s %s from IP %s at %s\n", username, eventType, ipAddress, loginTime))
-	//SlackMessagePayload
-	payload := LogLine{
-		Username:    username,
-		IpAddress:   ipAddress,
-		LoginTime:   loginTime,
-		EventType:   eventType,
-		HostMachine: hostMachine,
-	}
+func (s SlackNotifier) Notify(logLine LogLine) error {
+	log.Info().Msg(fmt.Sprintf("Sending notification to slack: User %s %s from IP %s at %s\n", logLine.Username, logLine.EventType, logLine.IpAddress, logLine.LoginTime))
 
-	payloadJson, err := json.Marshal(payload)
+	payloadJson, err := json.Marshal(logLine)
 	if err != nil {
 		return err
 	}
@@ -41,10 +33,10 @@ func (s SlackNotifier) Notify(username, ipAddress, loginTime, eventType, hostMac
 	}
 
 	log.Info().Msg(fmt.Sprintf("payload: %v", slackPayload))
+
 	payloadJSON, err := json.Marshal(slackPayload)
-	log.Info().Msg(fmt.Sprintf("%s", payloadJSON))
 	if err != nil {
-		return fmt.Errorf("Error marshaling Slack payload: %v", err)
+		return fmt.Errorf("Error marshaling Slack payload %v: %w", slackPayload, err)
 	}
 
 	client := &http.Client{}
@@ -58,7 +50,7 @@ func (s SlackNotifier) Notify(username, ipAddress, loginTime, eventType, hostMac
 	if err != nil {
 		return fmt.Errorf("Error sending Slack request: %v", err)
 	}
-	log.Info().Msg("c")
+
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
@@ -70,7 +62,7 @@ func (s SlackNotifier) Notify(username, ipAddress, loginTime, eventType, hostMac
 	log.Info().Msg(bodyString)
 
 	if resp.StatusCode != http.StatusOK {
-		log.Info().Msg(fmt.Sprintf("response status code not ok: %v", resp.StatusCode))
+		log.Error().Msg(fmt.Sprintf("response status code not ok: %v", resp.StatusCode))
 		return fmt.Errorf("Error sending Slack message: %s", resp.Status)
 	}
 
