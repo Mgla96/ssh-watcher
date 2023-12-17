@@ -32,13 +32,13 @@ type LogWatcher struct {
 	WatchSettings WatchSettings
 }
 
-func (w LogWatcher) shouldSendMessage(logLine notifier.LogLine) bool {
+func (w LogWatcher) shouldSendMessage(eventType notifier.EventType) bool {
 	switch {
-	case logLine.EventType == notifier.LoggedIn && w.WatchSettings.WatchAcceptedLogins:
+	case eventType == notifier.LoggedIn && w.WatchSettings.WatchAcceptedLogins:
 		return true
-	case logLine.EventType == notifier.FailedLoginAttempt && w.WatchSettings.WatchFailedLogins:
+	case eventType == notifier.FailedLoginAttempt && w.WatchSettings.WatchFailedLogins:
 		return true
-	case logLine.EventType == notifier.FailedLoginAttemptInvalidUsername && w.WatchSettings.WatchFailedLoginInvalidUsername:
+	case eventType == notifier.FailedLoginAttemptInvalidUsername && w.WatchSettings.WatchFailedLoginInvalidUsername:
 		return true
 	default:
 		return false
@@ -89,7 +89,7 @@ func (w LogWatcher) Watch() {
 				line := scanner.Text()
 				logLine := ParseLogLine(line)
 
-				if w.shouldSendMessage(logLine) {
+				if w.shouldSendMessage(logLine.EventType) {
 					if err := w.Notifier.Notify(logLine); err != nil {
 						log.Error().Err(err)
 						continue
