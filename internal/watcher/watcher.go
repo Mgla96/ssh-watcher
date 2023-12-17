@@ -81,19 +81,22 @@ func (w LogWatcher) getLastProcessedLine() int {
 func (w LogWatcher) updateLastProcessedLine(lineNumber int) error {
 	state, err := os.Create(stateFile)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to create or truncate state file")
-		return err
+		message := "failed to create or truncate state file"
+		log.Error().Err(err).Msg(message)
+		return fmt.Errorf("%v: %w", message, err)
 	}
 	defer state.Close()
 
 	if _, err := state.WriteString(fmt.Sprintf("%d", lineNumber)); err != nil {
-		log.Error().Err(err).Msg("Failed to write to state file")
-		return err
+		message := "failed to write to state file"
+		log.Error().Err(err).Msg(message)
+		return fmt.Errorf("%v: %w", message, err)
 	}
 
 	if err := state.Sync(); err != nil {
-		log.Error().Err(err)
-		return err
+		message := "failed to syc state file"
+		log.Error().Err(err).Msg(message)
+		return fmt.Errorf("%v: %w", message, err)
 	}
 
 	return nil

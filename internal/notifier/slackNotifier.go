@@ -22,7 +22,7 @@ func (s SlackNotifier) Notify(logLine LogLine) error {
 
 	payloadJson, err := json.Marshal(logLine)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal log line: %w", err)
 	}
 
 	slackPayload := SlackPayload{
@@ -36,26 +36,26 @@ func (s SlackNotifier) Notify(logLine LogLine) error {
 
 	payloadJSON, err := json.Marshal(slackPayload)
 	if err != nil {
-		return fmt.Errorf("Error marshaling Slack payload %v: %w", slackPayload, err)
+		return fmt.Errorf("error marshaling Slack payload %v: %w", slackPayload, err)
 	}
 
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", s.WebhookURL, bytes.NewBuffer(payloadJSON))
 	if err != nil {
-		return fmt.Errorf("Error creating Slack request: %w", err)
+		return fmt.Errorf("error creating Slack request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Error sending Slack request: %w", err)
+		return fmt.Errorf("error sending Slack request: %w", err)
 	}
 
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading Slack response body: %w", err)
 	}
 
 	bodyString := string(bodyBytes)
@@ -63,7 +63,7 @@ func (s SlackNotifier) Notify(logLine LogLine) error {
 
 	if resp.StatusCode != http.StatusOK {
 		log.Error().Msg(fmt.Sprintf("response status code not ok: %v", resp.StatusCode))
-		return fmt.Errorf("Error sending Slack message: %s", resp.Status)
+		return fmt.Errorf("error sending Slack message: %s", resp.Status)
 	}
 
 	return nil
