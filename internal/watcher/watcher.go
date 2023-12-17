@@ -110,25 +110,21 @@ func (w LogWatcher) Watch() {
 	}
 	defer file.Close()
 
-	lastProcessedOffset := 0
+	var lastProcessedOffset int64 = 0
+
 	for {
 		stat, err := file.Stat()
 		if err != nil {
 			log.Fatal().Err(err)
 		}
+		// TODO(mgottlieb) check log rotation.
+		// if stat.Size() < lastProcessedOffset || stat.ModTime().After(lastFileInfo.ModTime()) {}
 
-		if stat.Size() > int64(lastProcessedOffset) {
+		if stat.Size() > lastProcessedOffset {
 			lastProcessedLine := w.getLastProcessedLine()
-
-			// _, err := file.Seek(int64(lastProcessedLine), io.SeekStart)
-			// if err != nil {
-			// 	log.Error().Err(err)
-			// 	continue
-			// }
-
 			scanner := bufio.NewScanner(file)
 			for lineNumber := 0; scanner.Scan(); lineNumber++ {
-				// TODO(mgottlieb) we do not need to scan from very beginning line every time
+				// TODO(mgottlieb) we do not need to scan from very beginning line every time.
 				if lineNumber <= lastProcessedLine {
 					continue
 				}
@@ -145,19 +141,13 @@ func (w LogWatcher) Watch() {
 					}
 				}
 
-				// lastProcessedOffset, err = file.Seek(0, io.SeekCurrent)
-				// if err != nil {
-				// 	log.Error().Err(err)
-				// 	continue
-				// }
-
 				err := w.updateLastProcessedLine(lineNumber)
 				if err != nil {
 					log.Error().Err(err)
 					continue
 				}
 			}
-			lastProcessedOffset = int(stat.Size())
+			lastProcessedOffset = stat.Size()
 		}
 
 		time.Sleep(2 * time.Second)
