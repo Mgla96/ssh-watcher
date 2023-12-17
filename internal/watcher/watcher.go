@@ -101,28 +101,35 @@ func (w LogWatcher) updateLastProcessedLine(lineNumber int) error {
 
 // TODO(mgottlieb) refactor this into more unit-testable funcs
 func (w LogWatcher) Watch() {
-	currentSize := 0
-	for {
-		file, err := os.Open(w.LogFile)
-		if err != nil {
-			log.Fatal().Err(err)
-		}
-		defer file.Close()
+	file, err := os.Open(w.LogFile)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	defer file.Close()
 
+	lastProcessedOffset := 0
+	for {
 		stat, err := file.Stat()
 		if err != nil {
 			log.Fatal().Err(err)
 		}
 
-		if stat.Size() > int64(currentSize) {
+		if stat.Size() > int64(lastProcessedOffset) {
 			lastProcessedLine := w.getLastProcessedLine()
 
+			// _, err := file.Seek(int64(lastProcessedLine), io.SeekStart)
+			// if err != nil {
+			// 	log.Error().Err(err)
+			// 	continue
+			// }
+
 			scanner := bufio.NewScanner(file)
-			scanner.Split(bufio.ScanLines)
-			for i := 0; scanner.Scan(); i++ {
-				if i <= lastProcessedLine {
+			for lineNumber := 0; scanner.Scan(); lineNumber++ {
+				// TODO(mgottlieb) we do not need to scan from very beginning line every time
+				if lineNumber <= lastProcessedLine {
 					continue
 				}
+
 				line := scanner.Text()
 				logLine := ParseLogLine(line)
 
@@ -135,23 +142,19 @@ func (w LogWatcher) Watch() {
 					}
 				}
 
-				state, err := os.Create(stateFile)
+				// lastProcessedOffset, err = file.Seek(0, io.SeekCurrent)
+				// if err != nil {
+				// 	log.Error().Err(err)
+				// 	continue
+				// }
+
+				err := w.updateLastProcessedLine(lineNumber)
 				if err != nil {
 					log.Error().Err(err)
 					continue
 				}
-				if _, err := state.WriteString(fmt.Sprintf("%d", i)); err != nil {
-					log.Error().Err(err)
-					continue
-				}
-
-				if err := state.Sync(); err != nil {
-					log.Error().Err(err)
-					continue
-				}
-
 			}
-			currentSize = int(stat.Size())
+			lastProcessedOffset = int(stat.Size())
 		}
 
 		time.Sleep(2 * time.Second)
