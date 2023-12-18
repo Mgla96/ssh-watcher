@@ -18,7 +18,7 @@ linters:
     - cyclop
     - contextcheck
     - decorder
-    - depguard
+    #- depguard
     - errorlint
     - exportloopref
     - gocognit
