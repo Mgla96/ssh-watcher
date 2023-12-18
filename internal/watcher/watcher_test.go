@@ -1,8 +1,10 @@
 package watcher
 
 import (
+	"io/fs"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 )
@@ -167,6 +169,75 @@ func Test_parseLogLine(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := parseLogLine(tt.args.line); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parseLogLine() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type mockFileInfo struct {
+	stubName    func() string      // base name of the file
+	stubSize    func() int64       // length in bytes for regular files; system-dependent for others
+	stubMode    func() fs.FileMode // file mode bits
+	stubModTime func() time.Time   // modification time
+	stubIsDir   func() bool        // abbreviation for Mode().IsDir()
+	stubSys     func() any         // underlying data source (can return nil)
+}
+
+func (mfi mockFileInfo) Name() string {
+	return mfi.stubName()
+}
+func (mfi mockFileInfo) Size() int64 {
+	return mfi.stubSize()
+}
+func (mfi mockFileInfo) Mode() fs.FileMode {
+	return mfi.stubMode()
+}
+func (mfi mockFileInfo) ModTime() time.Time {
+	return mfi.stubModTime()
+}
+func (mfi mockFileInfo) IsDir() bool {
+	return mfi.stubIsDir()
+}
+func (mfi mockFileInfo) Sys() any {
+	return mfi.stubSys()
+}
+
+func Test_isLogRotated(t *testing.T) {
+	type args struct {
+		currentFileInfo fs.FileInfo
+		lastFileInfo    fs.FileInfo
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "not rotated",
+			args: args{
+				currentFileInfo: mockFileInfo{
+					stubName: func() string {
+						return "foo.log"
+					},
+					stubSize: func() int64 {
+						return 42
+					},
+				},
+				lastFileInfo: mockFileInfo{
+					stubName: func() string {
+						return "foo.log"
+					},
+					stubSize: func() int64 {
+						return 42
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isLogRotated(tt.args.currentFileInfo, tt.args.lastFileInfo); got != tt.want {
+				t.Errorf("isLogRotated() = %v, want %v", got, tt.want)
 			}
 		})
 	}
