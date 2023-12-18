@@ -45,47 +45,90 @@ func (w LogWatcher) shouldSendMessage(eventType notifier.EventType) bool {
 	}
 }
 
-// TODO(mgottlieb) refactor this into more unit-testable funcs
-func (w LogWatcher) Watch() {
-	currentSize := 0
-	for {
-		file, err := os.Open(w.LogFile)
-		if err != nil {
-			log.Fatal().Err(err)
-		}
-		defer file.Close()
+// getLastProcessedLine reads the statefile and extracts the last processed line number
+// in the ssh log file.
+func (w LogWatcher) getLastProcessedLine() int {
+	if _, err := os.Stat(stateFile); os.IsNotExist(err) {
+		return 0
+	}
 
+	state, err := os.Open(stateFile)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed opening state file")
+		return 0
+	}
+	defer state.Close()
+
+	scanner := bufio.NewScanner(state)
+	var currentLine int
+	for scanner.Scan() {
+		currentLine, err = strconv.Atoi(scanner.Text())
+		if err != nil {
+			log.Error().Err(err).Msg("Failed converting state file line to int")
+			return 0
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Error().Err(err).Msg("Error while reading state file")
+		return 0
+	}
+
+	return currentLine
+
+}
+
+func (w LogWatcher) updateLastProcessedLine(lineNumber int) error {
+	state, err := os.Create(stateFile)
+	if err != nil {
+		message := "failed to create or truncate state file"
+		log.Error().Err(err).Msg(message)
+		return fmt.Errorf("%v: %w", message, err)
+	}
+	defer state.Close()
+
+	if _, err := state.WriteString(fmt.Sprintf("%d", lineNumber)); err != nil {
+		message := "failed to write to state file"
+		log.Error().Err(err).Msg(message)
+		return fmt.Errorf("%v: %w", message, err)
+	}
+
+	if err := state.Sync(); err != nil {
+		message := "failed to syc state file"
+		log.Error().Err(err).Msg(message)
+		return fmt.Errorf("%v: %w", message, err)
+	}
+
+	return nil
+}
+
+// TODO(mgottlieb) refactor this into more unit-testable funcs.
+func (w LogWatcher) Watch() {
+	file, err := os.Open(w.LogFile)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	defer file.Close()
+
+	var lastProcessedOffset int64 = 0
+
+	for {
 		stat, err := file.Stat()
 		if err != nil {
 			log.Fatal().Err(err)
 		}
+		// TODO(mgottlieb) check log rotation.
+		// if stat.Size() < lastProcessedOffset || stat.ModTime().After(lastFileInfo.ModTime()) {}
 
-		if stat.Size() > int64(currentSize) {
-			var currentLine int
-
-			if _, err := os.Stat(stateFile); err == nil {
-				state, err := os.Open(stateFile)
-				if err != nil {
-					log.Fatal().Err(err)
-				}
-				defer state.Close()
-
-				scanner := bufio.NewScanner(state)
-				for scanner.Scan() {
-					currentLine, err = strconv.Atoi(scanner.Text())
-					if err != nil {
-						log.Fatal().Err(err)
-					}
-				}
-
-			}
-
+		if stat.Size() > lastProcessedOffset {
+			lastProcessedLine := w.getLastProcessedLine()
 			scanner := bufio.NewScanner(file)
-			scanner.Split(bufio.ScanLines)
-			for i := 0; scanner.Scan(); i++ {
-				if i <= currentLine {
+			for lineNumber := 0; scanner.Scan(); lineNumber++ {
+				// TODO(mgottlieb) we do not need to scan from very beginning line every time.
+				if lineNumber <= lastProcessedLine {
 					continue
 				}
+
 				line := scanner.Text()
 				logLine := ParseLogLine(line)
 
@@ -98,23 +141,13 @@ func (w LogWatcher) Watch() {
 					}
 				}
 
-				state, err := os.Create(stateFile)
+				err := w.updateLastProcessedLine(lineNumber)
 				if err != nil {
 					log.Error().Err(err)
 					continue
 				}
-				if _, err := state.WriteString(fmt.Sprintf("%d", i)); err != nil {
-					log.Error().Err(err)
-					continue
-				}
-
-				if err := state.Sync(); err != nil {
-					log.Error().Err(err)
-					continue
-				}
-
 			}
-			currentSize = int(stat.Size())
+			lastProcessedOffset = stat.Size()
 		}
 
 		time.Sleep(2 * time.Second)
