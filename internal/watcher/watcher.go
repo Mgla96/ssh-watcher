@@ -130,7 +130,7 @@ func (w LogWatcher) Watch() {
 				}
 
 				line := scanner.Text()
-				logLine := w.ParseLogLine(line)
+				logLine := w.parseLogLine(line)
 
 				if w.shouldSendMessage(logLine.EventType) {
 					if err := w.Notifier.Notify(logLine); err != nil {
