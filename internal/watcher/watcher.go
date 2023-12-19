@@ -102,6 +102,34 @@ func (w LogWatcher) updateLastProcessedLine(lineNumber int) error {
 	return nil
 }
 
+func (w LogWatcher) parseLogLine(line string) notifier.LogLine {
+	logLine := notifier.LogLine{}
+	if strings.Contains(line, "sshd") {
+		switch {
+		case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
+			logLine.EventType = notifier.LoggedIn
+		case strings.Contains(strings.ToLower(line), "invalid user"):
+			logLine.EventType = notifier.FailedLoginAttemptInvalidUsername
+		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
+			logLine.EventType = notifier.FailedLoginAttempt
+		}
+
+		if logLine.EventType != "" {
+			parts := strings.Split(line, " ")
+			logLine.LoginTime = parts[0] + " " + parts[1]
+			for i, part := range parts {
+				if part == "from" {
+					logLine.IpAddress = parts[i+1]
+				}
+				if part == "user" || part == "for" {
+					logLine.Username = parts[i+1]
+				}
+			}
+		}
+	}
+	return logLine
+}
+
 // TODO(mgottlieb) refactor this into more unit-testable funcs.
 func (w LogWatcher) Watch() {
 	file, err := os.Open(w.LogFile)
@@ -152,32 +180,4 @@ func (w LogWatcher) Watch() {
 
 		time.Sleep(2 * time.Second)
 	}
-}
-
-func (w LogWatcher) parseLogLine(line string) notifier.LogLine {
-	logLine := notifier.LogLine{}
-	if strings.Contains(line, "sshd") {
-		switch {
-		case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
-			logLine.EventType = notifier.LoggedIn
-		case strings.Contains(strings.ToLower(line), "invalid user"):
-			logLine.EventType = notifier.FailedLoginAttemptInvalidUsername
-		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
-			logLine.EventType = notifier.FailedLoginAttempt
-		}
-
-		if logLine.EventType != "" {
-			parts := strings.Split(line, " ")
-			logLine.LoginTime = parts[0] + " " + parts[1]
-			for i, part := range parts {
-				if part == "from" {
-					logLine.IpAddress = parts[i+1]
-				}
-				if part == "user" || part == "for" {
-					logLine.Username = parts[i+1]
-				}
-			}
-		}
-	}
-	return logLine
 }
