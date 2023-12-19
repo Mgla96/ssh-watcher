@@ -130,7 +130,7 @@ func (w LogWatcher) Watch() {
 				}
 
 				line := scanner.Text()
-				logLine := ParseLogLine(line)
+				logLine := w.ParseLogLine(line)
 
 				if w.shouldSendMessage(logLine.EventType) {
 					if err := w.Notifier.Notify(logLine); err != nil {
@@ -154,7 +154,7 @@ func (w LogWatcher) Watch() {
 	}
 }
 
-func ParseLogLine(line string) notifier.LogLine {
+func (w LogWatcher) parseLogLine(line string) notifier.LogLine {
 	logLine := notifier.LogLine{}
 	if strings.Contains(line, "sshd") {
 		switch {

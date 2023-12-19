@@ -117,7 +117,7 @@ func TestLogWatcher_shouldSendMessage(t *testing.T) {
 	}
 }
 
-func TestParseLogLine(t *testing.T) {
+func Test_parseLogLine(t *testing.T) {
 	type args struct {
 		line string
 	}
@@ -165,8 +165,9 @@ func TestParseLogLine(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ParseLogLine(tt.args.line); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ParseLogLine() = %v, want %v", got, tt.want)
+			w := LogWatcher{}
+			if got := w.parseLogLine(tt.args.line); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseLogLine() = %v, want %v", got, tt.want)
 			}
 		})
 	}
