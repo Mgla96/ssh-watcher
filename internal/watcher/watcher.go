@@ -3,6 +3,7 @@ package watcher
 import (
 	"bufio"
 	"fmt"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -139,6 +140,10 @@ func (w LogWatcher) Watch() {
 	defer file.Close()
 
 	var lastProcessedOffset int64 = 0
+	lastFileInfo, err := file.Stat()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
 
 	for {
 		stat, err := file.Stat()
@@ -146,7 +151,19 @@ func (w LogWatcher) Watch() {
 			log.Fatal().Err(err)
 		}
 		// TODO(mgottlieb) check log rotation.
-		// if stat.Size() < lastProcessedOffset || stat.ModTime().After(lastFileInfo.ModTime()) {}
+		if isLogRotated(stat, lastFileInfo) {
+			file.Close()
+			file, err = os.Open(w.LogFile)
+			if err != nil {
+				log.Fatal().Err(err)
+			}
+			stat, err = file.Stat()
+			if err != nil {
+				log.Fatal().Err(err)
+			}
+			lastProcessedOffset = 0
+			lastFileInfo = stat
+		}
 
 		if stat.Size() > lastProcessedOffset {
 			lastProcessedLine := w.getLastProcessedLine()
@@ -180,4 +197,8 @@ func (w LogWatcher) Watch() {
 
 		time.Sleep(2 * time.Second)
 	}
+}
+
+func isLogRotated(currentFileInfo fs.FileInfo, lastFileInfo fs.FileInfo) bool {
+	return !os.SameFile(currentFileInfo, lastFileInfo)
 }
