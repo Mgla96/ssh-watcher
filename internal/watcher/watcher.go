@@ -125,7 +125,6 @@ func (w LogWatcher) Watch() {
 		// TODO(mgottlieb) check log rotation.
 		if isLogRotated(stat, lastFileInfo) {
 			file.Close()
-
 			file, err = os.Open(w.LogFile)
 			if err != nil {
 				log.Fatal().Err(err)
