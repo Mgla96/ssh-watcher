@@ -131,6 +131,35 @@ func (w LogWatcher) parseLogLine(line string) notifier.LogLine {
 	return logLine
 }
 
+func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) error {
+	scanner := bufio.NewScanner(file)
+	for lineNumber := 0; scanner.Scan(); lineNumber++ {
+		// TODO(mgottlieb) we do not need to scan from very beginning line every time.
+		if lineNumber <= lastProcessedLine {
+			continue
+		}
+
+		line := scanner.Text()
+		logLine := w.parseLogLine(line)
+
+		if w.shouldSendMessage(logLine.EventType) {
+			if err := w.Notifier.Notify(logLine); err != nil {
+				log.Error().Err(err)
+				continue
+			} else {
+				log.Info().Msg("Posted message to slack")
+			}
+		}
+
+		err := w.updateLastProcessedLine(lineNumber)
+		if err != nil {
+			log.Error().Err(err)
+			return err
+		}
+	}
+	return nil
+}
+
 // TODO(mgottlieb) refactor this into more unit-testable funcs.
 func (w LogWatcher) Watch() {
 	file, err := os.Open(w.LogFile)
@@ -167,30 +196,9 @@ func (w LogWatcher) Watch() {
 
 		if stat.Size() > lastProcessedOffset {
 			lastProcessedLine := w.getLastProcessedLine()
-			scanner := bufio.NewScanner(file)
-			for lineNumber := 0; scanner.Scan(); lineNumber++ {
-				// TODO(mgottlieb) we do not need to scan from very beginning line every time.
-				if lineNumber <= lastProcessedLine {
-					continue
-				}
-
-				line := scanner.Text()
-				logLine := w.parseLogLine(line)
-
-				if w.shouldSendMessage(logLine.EventType) {
-					if err := w.Notifier.Notify(logLine); err != nil {
-						log.Error().Err(err)
-						continue
-					} else {
-						log.Info().Msg("Posted message to slack")
-					}
-				}
-
-				err := w.updateLastProcessedLine(lineNumber)
-				if err != nil {
-					log.Error().Err(err)
-					continue
-				}
+			err := w.processNewLogLines(file, lastProcessedLine)
+			if err != nil {
+				log.Fatal().Err(err)
 			}
 			lastProcessedOffset = stat.Size()
 		}
