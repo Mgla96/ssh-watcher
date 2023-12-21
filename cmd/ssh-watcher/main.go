@@ -97,7 +97,7 @@ func parseIntEnv(key string, defaultValue int) int {
 	valueStr := os.Getenv(key)
 	value, err := strconv.ParseInt(valueStr, 10, 0)
 	if err != nil {
-		log.Warn().Msgf("%s not parsable, defaulting to %t", key, defaultValue)
+		log.Warn().Msgf("%s not parsable, defaulting to %d", key, defaultValue)
 		return defaultValue
 	}
 	return int(value)
