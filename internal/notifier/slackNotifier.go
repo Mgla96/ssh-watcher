@@ -10,12 +10,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func NewSlackNotifier(WebhookURL, SlackChannel, SlackUsername, SlackIcon string) SlackNotifier {
+func NewSlackNotifier(webhookURL, slackChannel, slackUsername, slackIcon string) SlackNotifier {
 	return SlackNotifier{
-		WebhookURL:    WebhookURL,
-		SlackChannel:  SlackChannel,
-		SlackUsername: SlackUsername,
-		SlackIcon:     SlackIcon,
+		WebhookURL:    webhookURL,
+		SlackChannel:  slackChannel,
+		SlackUsername: slackUsername,
+		SlackIcon:     slackIcon,
 	}
 }
 

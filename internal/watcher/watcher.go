@@ -27,12 +27,12 @@ type WatchSettings struct {
 	WatchSleepInterval              time.Duration
 }
 
-func NewLogWatcher(LogFile string, Notifier notifier.Notifier, HostMachine string, WatchSettings WatchSettings) LogWatcher {
+func NewLogWatcher(logFile string, notifier notifier.Notifier, hostMachine string, watchSettings WatchSettings) LogWatcher {
 	return LogWatcher{
-		LogFile:       LogFile,
-		Notifier:      Notifier,
-		HostMachine:   HostMachine,
-		WatchSettings: WatchSettings,
+		LogFile:       logFile,
+		Notifier:      notifier,
+		HostMachine:   hostMachine,
+		WatchSettings: watchSettings,
 	}
 }
 
