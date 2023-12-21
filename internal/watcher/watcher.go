@@ -24,6 +24,16 @@ type WatchSettings struct {
 	WatchAcceptedLogins             bool
 	WatchFailedLogins               bool
 	WatchFailedLoginInvalidUsername bool
+	WatchSleepInterval              time.Duration
+}
+
+func NewLogWatcher(logFile string, notifier notifier.Notifier, hostMachine string, watchSettings WatchSettings) LogWatcher {
+	return LogWatcher{
+		LogFile:       logFile,
+		Notifier:      notifier,
+		HostMachine:   hostMachine,
+		WatchSettings: watchSettings,
+	}
 }
 
 type LogWatcher struct {
@@ -103,6 +113,63 @@ func (w LogWatcher) updateLastProcessedLine(lineNumber int) error {
 	return nil
 }
 
+func (w LogWatcher) parseLogLine(line string) notifier.LogLine {
+	logLine := notifier.LogLine{}
+	if strings.Contains(line, "sshd") {
+		switch {
+		case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
+			logLine.EventType = notifier.LoggedIn
+		case strings.Contains(strings.ToLower(line), "invalid user"):
+			logLine.EventType = notifier.FailedLoginAttemptInvalidUsername
+		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
+			logLine.EventType = notifier.FailedLoginAttempt
+		}
+
+		if logLine.EventType != "" {
+			parts := strings.Split(line, " ")
+			logLine.LoginTime = parts[0] + " " + parts[1]
+			for i, part := range parts {
+				if part == "from" {
+					logLine.IpAddress = parts[i+1]
+				}
+				if part == "user" || part == "for" {
+					logLine.Username = parts[i+1]
+				}
+			}
+		}
+	}
+	return logLine
+}
+
+func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) error {
+	scanner := bufio.NewScanner(file)
+	for lineNumber := 0; scanner.Scan(); lineNumber++ {
+		// TODO(mgottlieb) we do not need to scan from very beginning line every time.
+		if lineNumber <= lastProcessedLine {
+			continue
+		}
+
+		line := scanner.Text()
+		logLine := w.parseLogLine(line)
+
+		if w.shouldSendMessage(logLine.EventType) {
+			if err := w.Notifier.Notify(logLine); err != nil {
+				log.Error().Err(err)
+				continue
+			} else {
+				log.Info().Msg("notification message sent")
+			}
+		}
+
+		err := w.updateLastProcessedLine(lineNumber)
+		if err != nil {
+			log.Error().Err(err)
+			return err
+		}
+	}
+	return nil
+}
+
 // TODO(mgottlieb) refactor this into more unit-testable funcs.
 func (w LogWatcher) Watch() {
 	file, err := os.Open(w.LogFile)
@@ -139,66 +206,17 @@ func (w LogWatcher) Watch() {
 
 		if stat.Size() > lastProcessedOffset {
 			lastProcessedLine := w.getLastProcessedLine()
-			scanner := bufio.NewScanner(file)
-			for lineNumber := 0; scanner.Scan(); lineNumber++ {
-				// TODO(mgottlieb) we do not need to scan from very beginning line every time.
-				if lineNumber <= lastProcessedLine {
-					continue
-				}
-
-				line := scanner.Text()
-				logLine := parseLogLine(line)
-
-				if w.shouldSendMessage(logLine.EventType) {
-					if err := w.Notifier.Notify(logLine); err != nil {
-						log.Error().Err(err)
-						continue
-					} else {
-						log.Info().Msg("Posted message to slack")
-					}
-				}
-
-				err := w.updateLastProcessedLine(lineNumber)
-				if err != nil {
-					log.Error().Err(err)
-					continue
-				}
+			err := w.processNewLogLines(file, lastProcessedLine)
+			if err != nil {
+				log.Fatal().Err(err)
 			}
 			lastProcessedOffset = stat.Size()
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(w.WatchSettings.WatchSleepInterval)
 	}
 }
 
 func isLogRotated(currentFileInfo fs.FileInfo, lastFileInfo fs.FileInfo) bool {
 	return !os.SameFile(currentFileInfo, lastFileInfo)
-}
-
-func parseLogLine(line string) notifier.LogLine {
-	logLine := notifier.LogLine{}
-	if strings.Contains(line, "sshd") {
-		switch {
-		case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
-			logLine.EventType = notifier.LoggedIn
-		case strings.Contains(strings.ToLower(line), "invalid user"):
-			logLine.EventType = notifier.FailedLoginAttemptInvalidUsername
-		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
-			logLine.EventType = notifier.FailedLoginAttempt
-		}
-
-		if logLine.EventType != "" {
-			parts := strings.Split(line, " ")
-			logLine.LoginTime = parts[0] + " " + parts[1]
-			for i, part := range parts {
-				if part == "from" {
-					logLine.IpAddress = parts[i+1]
-				}
-				if part == "user" || part == "for" {
-					logLine.Username = parts[i+1]
-				}
-			}
-		}
-	}
-	return logLine
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 	"github.com/mgla96/ssh-watcher/internal/watcher"
@@ -19,6 +20,7 @@ const (
 	defaultWatchAcceptedLogins                    = true
 	defaultWatchFailedLogins                      = false
 	defaultWatchFailedLoginInvalidUsername        = false
+	defaultWatchSleepIntervalSeconds              = 2
 	envKeyHostUrl                                 = "HOST_URL"
 	envKeySlackWebhookUrl                         = "SLACK_WEBHOOK_URL"
 	envKeySlackChannel                            = "SLACK_CHANNEL"
@@ -28,6 +30,7 @@ const (
 	envKeyWatchSettingsAcceptedLogin              = "WATCH_SETTINGS_ACCEPTED_LOGIN"
 	envKeyWatchSettingsFailedLogin                = "WATCH_SETTINGS_FAILED_LOGIN"
 	envKeyWatchSettingsFailedLoginInvalidUsername = "WATCH_SETTINGS_FAILED_LOGIN_INVALID_USERNAME"
+	envKeyWatchInterval                           = "WATCH_INTERVAL"
 )
 
 type Config struct {
@@ -40,6 +43,7 @@ type Config struct {
 	WatchAcceptedLogin              bool
 	WatchFailedLogin                bool
 	WatchFailedLoginInvalidUsername bool
+	WatchSleepIntervalSeconds       int
 }
 
 func loadConfig() Config {
@@ -56,6 +60,8 @@ func loadConfig() Config {
 	c.WatchAcceptedLogin = parseBoolEnv(envKeyWatchSettingsAcceptedLogin, defaultWatchAcceptedLogins)
 	c.WatchFailedLogin = parseBoolEnv(envKeyWatchSettingsFailedLogin, defaultWatchFailedLogins)
 	c.WatchFailedLoginInvalidUsername = parseBoolEnv(envKeyWatchSettingsFailedLoginInvalidUsername, defaultWatchFailedLoginInvalidUsername)
+
+	c.WatchSleepIntervalSeconds = parseIntEnv(envKeyWatchInterval, defaultWatchSleepIntervalSeconds)
 
 	return c
 }
@@ -87,28 +93,33 @@ func parseBoolEnv(key string, defaultValue bool) bool {
 	return value
 }
 
+func parseIntEnv(key string, defaultValue int) int {
+	valueStr := os.Getenv(key)
+	value, err := strconv.ParseInt(valueStr, 10, 0)
+	if err != nil {
+		log.Warn().Msgf("%s not parsable, defaulting to %d", key, defaultValue)
+		return defaultValue
+	}
+	return int(value)
+}
+
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Info().Msg("Starting watcher")
-
 	config := loadConfig()
 
-	notifier := notifier.SlackNotifier{
-		WebhookURL:    config.WebhookUrl,
-		SlackChannel:  config.SlackChannel,
-		SlackUsername: config.SlackUsername,
-		SlackIcon:     config.SlackIcon,
-	}
-	watcher := watcher.LogWatcher{
-		LogFile:     config.LogFileLocation,
-		Notifier:    notifier,
-		HostMachine: config.HostUrl,
-		WatchSettings: watcher.WatchSettings{
+	notifier := notifier.NewSlackNotifier(config.WebhookUrl, config.SlackChannel, config.SlackUsername, config.SlackIcon)
+	watcher := watcher.NewLogWatcher(
+		config.LogFileLocation,
+		notifier,
+		config.HostUrl,
+		watcher.WatchSettings{
 			WatchAcceptedLogins:             config.WatchAcceptedLogin,
 			WatchFailedLogins:               config.WatchFailedLogin,
 			WatchFailedLoginInvalidUsername: config.WatchFailedLoginInvalidUsername,
+			WatchSleepInterval:              time.Duration(config.WatchSleepIntervalSeconds) * time.Second,
 		},
-	}
+	)
 
 	log.Info().Msg(fmt.Sprintf("starting watcher, webhook url: %s, logfile: %s", config.WebhookUrl, config.LogFileLocation))
 	watcher.Watch()

@@ -165,7 +165,8 @@ func Test_parseLogLine(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parseLogLine(tt.args.line); !reflect.DeepEqual(got, tt.want) {
+			w := LogWatcher{}
+			if got := w.parseLogLine(tt.args.line); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parseLogLine() = %v, want %v", got, tt.want)
 			}
 		})
