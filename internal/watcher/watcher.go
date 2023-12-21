@@ -24,6 +24,16 @@ type WatchSettings struct {
 	WatchAcceptedLogins             bool
 	WatchFailedLogins               bool
 	WatchFailedLoginInvalidUsername bool
+	WatchSleepInterval              time.Duration
+}
+
+func NewLogWatcher(LogFile string, Notifier notifier.Notifier, HostMachine string, WatchSettings WatchSettings) LogWatcher {
+	return LogWatcher{
+		LogFile:       LogFile,
+		Notifier:      Notifier,
+		HostMachine:   HostMachine,
+		WatchSettings: WatchSettings,
+	}
 }
 
 type LogWatcher struct {
@@ -147,7 +157,7 @@ func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) err
 				log.Error().Err(err)
 				continue
 			} else {
-				log.Info().Msg("Posted message to slack")
+				log.Info().Msg("notification message sent")
 			}
 		}
 
@@ -203,7 +213,7 @@ func (w LogWatcher) Watch() {
 			lastProcessedOffset = stat.Size()
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(w.WatchSettings.WatchSleepInterval)
 	}
 }
 

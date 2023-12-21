@@ -10,6 +10,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func NewSlackNotifier(WebhookURL, SlackChannel, SlackUsername, SlackIcon string) SlackNotifier {
+	return SlackNotifier{
+		WebhookURL:    WebhookURL,
+		SlackChannel:  SlackChannel,
+		SlackUsername: SlackUsername,
+		SlackIcon:     SlackIcon,
+	}
+}
+
 type SlackNotifier struct {
 	WebhookURL    string
 	SlackChannel  string
@@ -52,14 +61,11 @@ func (s SlackNotifier) Notify(logLine LogLine) error {
 	}
 
 	defer resp.Body.Close()
-
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("error reading Slack response body: %w", err)
 	}
-
-	bodyString := string(bodyBytes)
-	log.Info().Msg(bodyString)
+	log.Info().Msg(string(bodyBytes))
 
 	if resp.StatusCode != http.StatusOK {
 		log.Error().Msg(fmt.Sprintf("response status code not ok: %v", resp.StatusCode))

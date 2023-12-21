@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 	"github.com/mgla96/ssh-watcher/internal/watcher"
@@ -90,25 +91,20 @@ func parseBoolEnv(key string, defaultValue bool) bool {
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Info().Msg("Starting watcher")
-
 	config := loadConfig()
 
-	notifier := notifier.SlackNotifier{
-		WebhookURL:    config.WebhookUrl,
-		SlackChannel:  config.SlackChannel,
-		SlackUsername: config.SlackUsername,
-		SlackIcon:     config.SlackIcon,
-	}
-	watcher := watcher.LogWatcher{
-		LogFile:     config.LogFileLocation,
-		Notifier:    notifier,
-		HostMachine: config.HostUrl,
-		WatchSettings: watcher.WatchSettings{
+	notifier := notifier.NewSlackNotifier(config.WebhookUrl, config.SlackChannel, config.SlackUsername, config.SlackIcon)
+	watcher := watcher.NewLogWatcher(
+		config.LogFileLocation,
+		notifier,
+		config.HostUrl,
+		watcher.WatchSettings{
 			WatchAcceptedLogins:             config.WatchAcceptedLogin,
 			WatchFailedLogins:               config.WatchFailedLogin,
 			WatchFailedLoginInvalidUsername: config.WatchFailedLoginInvalidUsername,
+			WatchSleepInterval:              2 * time.Second,
 		},
-	}
+	)
 
 	log.Info().Msg(fmt.Sprintf("starting watcher, webhook url: %s, logfile: %s", config.WebhookUrl, config.LogFileLocation))
 	watcher.Watch()
