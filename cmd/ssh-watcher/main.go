@@ -19,7 +19,7 @@ type SlackConfig struct {
 }
 
 type Config struct {
-	HostUrl                         string       `envconfig:"HOST_URL" required:"true"`
+	HostMachineName                 string       `envconfig:"HOST_MACHINE_NAME" required:"true"`
 	Slack                           *SlackConfig `envconfig:"SLACK"`
 	LogFileLocation                 string       `envconfig:"WATCH_LOGFILE" default:"/var/log/auth.log"`
 	WatchAcceptedLogin              bool         `envconfig:"WATCH_SETTINGS_ACCEPTED_LOGIN" default:"true"`
@@ -49,7 +49,7 @@ func main() {
 	watcher := watcher.NewLogWatcher(
 		config.LogFileLocation,
 		notifier,
-		config.HostUrl,
+		config.HostMachineName,
 		watcher.WatchSettings{
 			WatchAcceptedLogins:             config.WatchAcceptedLogin,
 			WatchFailedLogins:               config.WatchFailedLogin,
