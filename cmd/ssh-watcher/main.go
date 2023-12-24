@@ -32,7 +32,7 @@ func loadConfig() (*Config, error) {
 	c := Config{}
 	err := envconfig.Process("", &c)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed processing config: %w", err)
 	}
 	return &c, nil
 }
@@ -59,5 +59,7 @@ func main() {
 	)
 
 	log.Info().Msg(fmt.Sprintf("starting watcher, webhook url: %s, logfile: %s", config.Slack.WebhookUrl, config.LogFileLocation))
-	watcher.Watch()
+	if err = watcher.Watch(); err != nil {
+		panic(err)
+	}
 }

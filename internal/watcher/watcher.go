@@ -171,36 +171,36 @@ func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) err
 }
 
 // TODO(mgottlieb) refactor this into more unit-testable funcs.
-func (w LogWatcher) Watch() {
+func (w LogWatcher) Watch() error {
 	file, err := os.Open(w.LogFile)
 	if err != nil {
-		log.Fatal().Err(err)
+		return fmt.Errorf("error opening log file: %w", err)
 	}
 	defer file.Close()
 
 	var lastProcessedOffset int64 = 0
 	lastFileInfo, err := file.Stat()
 	if err != nil {
-		log.Fatal().Err(err)
+		return fmt.Errorf("error returning last file info: %w", err)
 	}
 
 	for {
 		stat, err := file.Stat()
 		if err != nil {
-			log.Fatal().Err(err)
+			return fmt.Errorf("error returning file info: %w", err)
 		}
 		// TODO(mgottlieb) check log rotation.
 		if isLogRotated(stat, lastFileInfo) {
 			if err := file.Close(); err != nil {
-				log.Fatal().Err(err)
+				return fmt.Errorf("error closing file: %w", err)
 			}
 			file, err = os.Open(w.LogFile)
 			if err != nil {
-				log.Fatal().Err(err)
+				return fmt.Errorf("error opening file: %w", err)
 			}
 			stat, err = file.Stat()
 			if err != nil {
-				log.Fatal().Err(err)
+				return fmt.Errorf("error returning file info when log rotated: %w", err)
 			}
 			lastProcessedOffset = 0
 			lastFileInfo = stat
@@ -210,7 +210,7 @@ func (w LogWatcher) Watch() {
 			lastProcessedLine := w.getLastProcessedLine()
 			err := w.processNewLogLines(file, lastProcessedLine)
 			if err != nil {
-				log.Fatal().Err(err)
+				return fmt.Errorf("error processing new log lines: %w", err)
 			}
 			lastProcessedOffset = stat.Size()
 		}
