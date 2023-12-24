@@ -16,6 +16,10 @@ const (
 	defaultContextTimeout time.Duration = 5 * time.Second
 )
 
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 func NewSlackNotifier(webhookURL, slackChannel, slackUsername, slackIcon string) SlackNotifier {
 	return SlackNotifier{
 		WebhookURL:    webhookURL,
@@ -31,7 +35,7 @@ type SlackNotifier struct {
 	SlackChannel  string
 	SlackUsername string
 	SlackIcon     string
-	HttpClient    *http.Client
+	HttpClient    HTTPClient
 }
 
 func (s SlackNotifier) Notify(logLine LogLine) error {
