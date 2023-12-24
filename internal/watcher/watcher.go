@@ -17,7 +17,7 @@ import (
 const (
 	// stateFile keeps track of the last processed line by ssh watcher so restarts
 	// of the service do not reprocess all ssh history.
-	stateFile = "/tmp/authlog-state"
+	stateFile = "/var/lib/ssh-watcher/authlog-state"
 )
 
 type WatchSettings struct {
@@ -191,7 +191,9 @@ func (w LogWatcher) Watch() {
 		}
 		// TODO(mgottlieb) check log rotation.
 		if isLogRotated(stat, lastFileInfo) {
-			file.Close()
+			if err := file.Close(); err != nil {
+				log.Fatal().Err(err)
+			}
 			file, err = os.Open(w.LogFile)
 			if err != nil {
 				log.Fatal().Err(err)
