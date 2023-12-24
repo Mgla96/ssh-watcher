@@ -2,12 +2,18 @@ package notifier
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	defaultContextTimeout time.Duration = 5 * time.Second
 )
 
 func NewSlackNotifier(webhookURL, slackChannel, slackUsername, slackIcon string) SlackNotifier {
@@ -16,6 +22,7 @@ func NewSlackNotifier(webhookURL, slackChannel, slackUsername, slackIcon string)
 		SlackChannel:  slackChannel,
 		SlackUsername: slackUsername,
 		SlackIcon:     slackIcon,
+		HttpClient:    &http.Client{},
 	}
 }
 
@@ -24,6 +31,7 @@ type SlackNotifier struct {
 	SlackChannel  string
 	SlackUsername string
 	SlackIcon     string
+	HttpClient    *http.Client
 }
 
 func (s SlackNotifier) Notify(logLine LogLine) error {
@@ -48,14 +56,16 @@ func (s SlackNotifier) Notify(logLine LogLine) error {
 		return fmt.Errorf("error marshaling Slack payload %v: %w", slackPayload, err)
 	}
 
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", s.WebhookURL, bytes.NewBuffer(payloadJSON))
+	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", s.WebhookURL, bytes.NewBuffer(payloadJSON))
 	if err != nil {
 		return fmt.Errorf("error creating Slack request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
+	resp, err := s.HttpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending Slack request: %w", err)
 	}
