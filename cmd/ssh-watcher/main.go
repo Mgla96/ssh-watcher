@@ -29,7 +29,7 @@ type Config struct {
 	WatchSleepIntervalSeconds       int          `envconfig:"WATCH_SETTINGS_SLEEP_INTERVAL_SECONDS" default:"2"`
 	// StateFilePath is location of file that keeps track of the last processed line
 	// by ssh watcher so restarts of the service do not reprocess all ssh history.
-	StateFilePath string `envconfig:"STATE_FILE_PATH default:"/var/lib/ssh-watcher/authlog-state"`
+	StateFilePath string `envconfig:"STATE_FILE_PATH" default:"/var/lib/ssh-watcher/authlog-state"`
 }
 
 func loadConfig() (*Config, error) {
