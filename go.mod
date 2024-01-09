@@ -1,6 +1,6 @@
 module github.com/mgla96/ssh-watcher
 
-go 1.23
+go 1.21.5
 
 require (
 	github.com/kelseyhightower/envconfig v1.4.0
