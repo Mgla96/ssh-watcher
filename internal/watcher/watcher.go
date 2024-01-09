@@ -58,29 +58,32 @@ func (w LogWatcher) shouldSendMessage(eventType notifier.EventType) bool {
 
 func (w LogWatcher) parseLogLine(line string) notifier.LogLine {
 	logLine := notifier.LogLine{}
-	if strings.Contains(line, "sshd") {
-		switch {
-		case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
-			logLine.EventType = notifier.LoggedIn
-		case strings.Contains(strings.ToLower(line), "invalid user"):
-			logLine.EventType = notifier.FailedLoginAttemptInvalidUsername
-		case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
-			logLine.EventType = notifier.FailedLoginAttempt
-		}
+	if !strings.Contains(line, "sshd") {
+		return logLine
+	}
 
-		if logLine.EventType != "" {
-			parts := strings.Split(line, " ")
-			logLine.LoginTime = parts[0] + " " + parts[1]
-			for i, part := range parts {
-				if part == "from" {
-					logLine.IpAddress = parts[i+1]
-				}
-				if part == "user" || part == "for" {
-					logLine.Username = parts[i+1]
-				}
+	switch {
+	case strings.Contains(line, "Accepted password"), strings.Contains(line, "Accepted publickey"):
+		logLine.EventType = notifier.LoggedIn
+	case strings.Contains(strings.ToLower(line), "invalid user"):
+		logLine.EventType = notifier.FailedLoginAttemptInvalidUsername
+	case strings.Contains(line, "Failed password"), strings.Contains(line, "Connection closed by authenticating user"):
+		logLine.EventType = notifier.FailedLoginAttempt
+	}
+
+	if logLine.EventType != "" {
+		parts := strings.Split(line, " ")
+		logLine.LoginTime = parts[0] + " " + parts[1]
+		for i, part := range parts {
+			if part == "from" {
+				logLine.IpAddress = parts[i+1]
+			}
+			if part == "user" || part == "for" {
+				logLine.Username = parts[i+1]
 			}
 		}
 	}
+
 	return logLine
 }
 
@@ -107,7 +110,7 @@ func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) err
 		err := w.ProcessedLineTracker.UpdateLastProcessedLine(lineNumber)
 		if err != nil {
 			log.Error().Err(err)
-			return err
+			return fmt.Errorf("%v: %w", "failed updating last processed line", err)
 		}
 	}
 	return nil
