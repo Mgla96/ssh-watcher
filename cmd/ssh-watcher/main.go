@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/mgla96/ssh-watcher/internal/linetracker"
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 	"github.com/mgla96/ssh-watcher/internal/watcher"
 	"github.com/rs/zerolog"
@@ -26,6 +27,9 @@ type Config struct {
 	WatchFailedLogin                bool         `envconfig:"WATCH_SETTINGS_FAILED_LOGIN" default:"true"`
 	WatchFailedLoginInvalidUsername bool         `envconfig:"WATCH_SETTINGS_FAILED_LOGIN_INVALID_USERNAME" default:"false"`
 	WatchSleepIntervalSeconds       int          `envconfig:"WATCH_SETTINGS_SLEEP_INTERVAL_SECONDS" default:"2"`
+	// StateFilePath is location of file that keeps track of the last processed line
+	// by ssh watcher so restarts of the service do not reprocess all ssh history.
+	StateFilePath string `envconfig:"STATE_FILE_PATH" default:"/var/lib/ssh-watcher/authlog-state"`
 }
 
 func loadConfig() (*Config, error) {
@@ -46,6 +50,7 @@ func main() {
 	}
 
 	notifier := notifier.NewSlackNotifier(config.Slack.WebhookUrl, config.Slack.Channel, config.Slack.Username, config.Slack.Icon)
+	processedLineTracker := linetracker.NewFileProcessedLineTracker(config.StateFilePath)
 	watcher := watcher.NewLogWatcher(
 		config.LogFileLocation,
 		notifier,
@@ -56,6 +61,7 @@ func main() {
 			WatchFailedLoginInvalidUsername: config.WatchFailedLoginInvalidUsername,
 			WatchSleepInterval:              time.Duration(config.WatchSleepIntervalSeconds) * time.Second,
 		},
+		processedLineTracker,
 	)
 
 	log.Info().Msg(fmt.Sprintf("starting watcher, webhook url: %s, logfile: %s", config.Slack.WebhookUrl, config.LogFileLocation))
