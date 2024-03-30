@@ -129,14 +129,15 @@ func Test_parseLogLine(t *testing.T) {
 	}{
 		{
 			name: "accepted password",
-			args: {
-				line: "Dec 1 10:0:0 fake sshdWatchFailedLoginInvalidUsername
-				WatchFailedLoginInvalidUsername
-				WatchFailedLoginInvalidUsername
-				WatchFailedLoginInvalidUsername
-				WatchFailedLoginInvalidUsername
-				WatchFailedLoginInvalidUsername
-				"
+			args: args{
+				line: "Dec 1 10:0:0 fake sshd[0000]: Accepted password for foo from 1.2.3.4 port 57000 ssh2",
+			},
+			want: notifier.LogLine{
+				Username:  "foo",
+				IpAddress: "1.2.3.4",
+				LoginTime: "Dec 1",
+				EventType: notifier.LoggedIn,
+			},
 		},
 		{
 			name: "failed password",
@@ -171,5 +172,4 @@ func Test_parseLogLine(t *testing.T) {
 			}
 		})
 	}
-}
 }
