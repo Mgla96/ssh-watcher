@@ -163,6 +163,13 @@ func Test_parseLogLine(t *testing.T) {
 				EventType: notifier.FailedLoginAttemptInvalidUsername,
 			},
 		},
+		{
+			name: "not sshd line",
+			args: args{
+				line: "Dec 1 10:0:0 fake foobar",
+			},
+			want: notifier.LogLine{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
