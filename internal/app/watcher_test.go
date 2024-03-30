@@ -1,15 +1,16 @@
-package watcher
+package app
 
 import (
 	"reflect"
 	"testing"
 
+	"github.com/mgla96/ssh-watcher/internal/config"
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 )
 
 func TestLogWatcher_shouldSendMessage(t *testing.T) {
 	type fields struct {
-		WatchSettings WatchSettings
+		watchSettings config.WatchSettings
 	}
 	type args struct {
 		eventType notifier.EventType
@@ -23,10 +24,10 @@ func TestLogWatcher_shouldSendMessage(t *testing.T) {
 		{
 			name: "test should send accepted login",
 			fields: fields{
-				WatchSettings: WatchSettings{
-					WatchAcceptedLogins:             true,
-					WatchFailedLogins:               false,
-					WatchFailedLoginInvalidUsername: false,
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             true,
+					FailedLogins:               false,
+					FailedLoginInvalidUsername: false,
 				},
 			},
 			args: args{
@@ -37,10 +38,10 @@ func TestLogWatcher_shouldSendMessage(t *testing.T) {
 		{
 			name: "test should send failed login",
 			fields: fields{
-				WatchSettings: WatchSettings{
-					WatchAcceptedLogins:             false,
-					WatchFailedLogins:               true,
-					WatchFailedLoginInvalidUsername: false,
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             false,
+					FailedLogins:               true,
+					FailedLoginInvalidUsername: false,
 				},
 			},
 			args: args{
@@ -51,10 +52,10 @@ func TestLogWatcher_shouldSendMessage(t *testing.T) {
 		{
 			name: "test should send failed login invalid username",
 			fields: fields{
-				WatchSettings: WatchSettings{
-					WatchAcceptedLogins:             false,
-					WatchFailedLogins:               false,
-					WatchFailedLoginInvalidUsername: true,
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             false,
+					FailedLogins:               false,
+					FailedLoginInvalidUsername: true,
 				},
 			},
 			args: args{
@@ -65,10 +66,10 @@ func TestLogWatcher_shouldSendMessage(t *testing.T) {
 		{
 			name: "test should not send accepted login",
 			fields: fields{
-				WatchSettings: WatchSettings{
-					WatchAcceptedLogins:             false,
-					WatchFailedLogins:               true,
-					WatchFailedLoginInvalidUsername: true,
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             false,
+					FailedLogins:               true,
+					FailedLoginInvalidUsername: true,
 				},
 			},
 			args: args{
@@ -79,10 +80,10 @@ func TestLogWatcher_shouldSendMessage(t *testing.T) {
 		{
 			name: "test should not send failed login",
 			fields: fields{
-				WatchSettings: WatchSettings{
-					WatchAcceptedLogins:             true,
-					WatchFailedLogins:               false,
-					WatchFailedLoginInvalidUsername: true,
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             true,
+					FailedLogins:               false,
+					FailedLoginInvalidUsername: true,
 				},
 			},
 			args: args{
@@ -93,10 +94,10 @@ func TestLogWatcher_shouldSendMessage(t *testing.T) {
 		{
 			name: "test should not send failed login invalid username",
 			fields: fields{
-				WatchSettings: WatchSettings{
-					WatchAcceptedLogins:             true,
-					WatchFailedLogins:               true,
-					WatchFailedLoginInvalidUsername: false,
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             true,
+					FailedLogins:               true,
+					FailedLoginInvalidUsername: false,
 				},
 			},
 			args: args{
@@ -107,11 +108,11 @@ func TestLogWatcher_shouldSendMessage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := LogWatcher{
-				WatchSettings: tt.fields.WatchSettings,
+			w := App{
+				watchSettings: tt.fields.watchSettings,
 			}
 			if got := w.shouldSendMessage(tt.args.eventType); got != tt.want {
-				t.Errorf("LogWatcher.shouldSendMessage() = %v, want %v", got, tt.want)
+				t.Errorf("App.shouldSendMessage() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -128,15 +129,14 @@ func Test_parseLogLine(t *testing.T) {
 	}{
 		{
 			name: "accepted password",
-			args: args{
-				line: "Dec 1 10:0:0 fake sshd[0000]: Accepted password for foo from 1.2.3.4 port 57000 ssh2",
-			},
-			want: notifier.LogLine{
-				Username:  "foo",
-				IpAddress: "1.2.3.4",
-				LoginTime: "Dec 1",
-				EventType: notifier.LoggedIn,
-			},
+			args: {
+				line: "Dec 1 10:0:0 fake sshdWatchFailedLoginInvalidUsername
+				WatchFailedLoginInvalidUsername
+				WatchFailedLoginInvalidUsername
+				WatchFailedLoginInvalidUsername
+				WatchFailedLoginInvalidUsername
+				WatchFailedLoginInvalidUsername
+				"
 		},
 		{
 			name: "failed password",
@@ -165,10 +165,11 @@ func Test_parseLogLine(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := LogWatcher{}
+			w := App{}
 			if got := w.parseLogLine(tt.args.line); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parseLogLine() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
 }

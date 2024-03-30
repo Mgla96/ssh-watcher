@@ -1,9 +1,5 @@
 package notifier
 
-type Notifier interface {
-	Notify(LogLine LogLine) error
-}
-
 type EventType string
 
 const (

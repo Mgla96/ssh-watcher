@@ -1,4 +1,4 @@
-package watcher
+package app
 
 import (
 	"bufio"
@@ -8,55 +8,56 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mgla96/ssh-watcher/internal/config"
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 
 	"github.com/rs/zerolog/log"
 )
 
-type WatchSettings struct {
-	WatchAcceptedLogins             bool
-	WatchFailedLogins               bool
-	WatchFailedLoginInvalidUsername bool
-	WatchSleepInterval              time.Duration
+// notifierClient is an interface for sending notifications
+//
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . notifierClient
+type notifierClient interface {
+	Notify(LogLine notifier.LogLine) error
 }
 
-func NewLogWatcher(logFile string, notifier notifier.Notifier, hostMachine string, watchSettings WatchSettings, processedLineTracker ProcessedLineTracker) LogWatcher {
-	return LogWatcher{
-		LogFile:              logFile,
-		Notifier:             notifier,
-		HostMachine:          hostMachine,
-		WatchSettings:        watchSettings,
-		ProcessedLineTracker: processedLineTracker,
+func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker) App {
+	return App{
+		logFile:              logFile,
+		notifier:             notifier,
+		hostMachine:          hostMachine,
+		watchSettings:        watchSettings,
+		processedLineTracker: processedLineTracker,
 	}
 }
 
-type ProcessedLineTracker interface {
+type processedLineTracker interface {
 	GetLastProcessedLine() (int, error)
 	UpdateLastProcessedLine(lineNumber int) error
 }
 
-type LogWatcher struct {
-	LogFile              string
-	Notifier             notifier.Notifier
-	HostMachine          string
-	WatchSettings        WatchSettings
-	ProcessedLineTracker ProcessedLineTracker
+type App struct {
+	logFile              string
+	notifier             notifierClient
+	hostMachine          string
+	watchSettings        config.WatchSettings
+	processedLineTracker processedLineTracker
 }
 
-func (w LogWatcher) shouldSendMessage(eventType notifier.EventType) bool {
+func (a App) shouldSendMessage(eventType notifier.EventType) bool {
 	switch {
-	case eventType == notifier.LoggedIn && w.WatchSettings.WatchAcceptedLogins:
+	case eventType == notifier.LoggedIn && a.watchSettings.AcceptedLogins:
 		return true
-	case eventType == notifier.FailedLoginAttempt && w.WatchSettings.WatchFailedLogins:
+	case eventType == notifier.FailedLoginAttempt && a.watchSettings.FailedLogins:
 		return true
-	case eventType == notifier.FailedLoginAttemptInvalidUsername && w.WatchSettings.WatchFailedLoginInvalidUsername:
+	case eventType == notifier.FailedLoginAttemptInvalidUsername && a.watchSettings.FailedLoginInvalidUsername:
 		return true
 	default:
 		return false
 	}
 }
 
-func (w LogWatcher) parseLogLine(line string) notifier.LogLine {
+func (a App) parseLogLine(line string) notifier.LogLine {
 	logLine := notifier.LogLine{}
 	if !strings.Contains(line, "sshd") {
 		return logLine
@@ -87,7 +88,7 @@ func (w LogWatcher) parseLogLine(line string) notifier.LogLine {
 	return logLine
 }
 
-func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) error {
+func (a App) processNewLogLines(file *os.File, lastProcessedLine int) error {
 	scanner := bufio.NewScanner(file)
 	for lineNumber := 0; scanner.Scan(); lineNumber++ {
 		// TODO(mgottlieb) we do not need to scan from very beginning line every time.
@@ -96,10 +97,10 @@ func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) err
 		}
 
 		line := scanner.Text()
-		logLine := w.parseLogLine(line)
+		logLine := a.parseLogLine(line)
 
-		if w.shouldSendMessage(logLine.EventType) {
-			if err := w.Notifier.Notify(logLine); err != nil {
+		if a.shouldSendMessage(logLine.EventType) {
+			if err := a.notifier.Notify(logLine); err != nil {
 				log.Error().Err(err)
 				continue
 			} else {
@@ -107,7 +108,7 @@ func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) err
 			}
 		}
 
-		err := w.ProcessedLineTracker.UpdateLastProcessedLine(lineNumber)
+		err := a.processedLineTracker.UpdateLastProcessedLine(lineNumber)
 		if err != nil {
 			log.Error().Err(err)
 			return fmt.Errorf("%v: %w", "failed updating last processed line", err)
@@ -117,8 +118,8 @@ func (w LogWatcher) processNewLogLines(file *os.File, lastProcessedLine int) err
 }
 
 // TODO(mgottlieb) refactor this into more unit-testable funcs.
-func (w LogWatcher) Watch() error {
-	file, err := os.Open(w.LogFile)
+func (a App) Watch() error {
+	file, err := os.Open(a.logFile)
 	if err != nil {
 		return fmt.Errorf("error opening log file: %w", err)
 	}
@@ -140,7 +141,7 @@ func (w LogWatcher) Watch() error {
 			if err := file.Close(); err != nil {
 				return fmt.Errorf("error closing file: %w", err)
 			}
-			file, err = os.Open(w.LogFile)
+			file, err = os.Open(a.logFile)
 			if err != nil {
 				return fmt.Errorf("error opening file: %w", err)
 			}
@@ -153,19 +154,19 @@ func (w LogWatcher) Watch() error {
 		}
 
 		if stat.Size() > lastProcessedOffset {
-			lastProcessedLine, err := w.ProcessedLineTracker.GetLastProcessedLine()
+			lastProcessedLine, err := a.processedLineTracker.GetLastProcessedLine()
 			if err != nil {
 				return fmt.Errorf("error getting last processed line: %w", err)
 			}
 
-			err = w.processNewLogLines(file, lastProcessedLine)
+			err = a.processNewLogLines(file, lastProcessedLine)
 			if err != nil {
 				return fmt.Errorf("error processing new log lines: %w", err)
 			}
 			lastProcessedOffset = stat.Size()
 		}
 
-		time.Sleep(w.WatchSettings.WatchSleepInterval)
+		time.Sleep(time.Duration(a.watchSettings.SleepInterval) * time.Second)
 	}
 }
 
