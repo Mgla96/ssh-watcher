@@ -21,6 +21,14 @@ type notifierClient interface {
 	Notify(LogLine notifier.LogLine) error
 }
 
+// processedLineTracker is an interface for tracking the last processed line
+//
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . processedLineTracker
+type processedLineTracker interface {
+	GetLastProcessedLine() (int, error)
+	UpdateLastProcessedLine(lineNumber int) error
+}
+
 func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker) App {
 	return App{
 		logFile:              logFile,
@@ -29,11 +37,6 @@ func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSe
 		watchSettings:        watchSettings,
 		processedLineTracker: processedLineTracker,
 	}
-}
-
-type processedLineTracker interface {
-	GetLastProcessedLine() (int, error)
-	UpdateLastProcessedLine(lineNumber int) error
 }
 
 type App struct {
