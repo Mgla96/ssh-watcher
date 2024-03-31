@@ -55,10 +55,10 @@ func New() (*Config, error)
 
 ```go
 type Slack struct {
-    WebhookUrl string `envconfig:"SLACK_WEBHOOK_URL"`
-    Channel    string `envconfig:"SLACK_CHANNEL" default:"#ssh-alerts"`
-    Username   string `envconfig:"SLACK_USERNAME" default:"poe-ssh-bot"`
-    Icon       string `envconfig:"SLACK_ICON" default:":ghost:"`
+    WebhookUrl string `split_words:"true" required:"true"`
+    Channel    string `split_words:"true"  default:"#ssh-alerts"`
+    Username   string `split_words:"true"  default:"poe-ssh-bot"`
+    Icon       string `split_words:"true"  default:":ghost:"`
 }
 ```
 
@@ -72,7 +72,7 @@ type WatchSettings struct {
     // AcceptedLogins is a flag to watch for successful logins
     AcceptedLogins bool `default:"true" split_words:"true"`
     // FailedLogins is a flag to watch for failed logins
-    FailedLogins bool `default:"false" split_words:"true"`
+    FailedLogins bool `default:"true" split_words:"true"`
     // FailedLoginInvalidUsername is a flag to watch for failed logins with invalid username
     FailedLoginInvalidUsername bool `default:"true" split_words:"true"`
     // SleepInterval is the interval in seconds to sleep between log file reads
