@@ -25,7 +25,7 @@ func main() {
 
 	fileOps := file.FileOps{}
 	watcher := app.New(
-		config.LogFileLocation,
+		config.WatchSettings.LogFileLocation,
 		notifier,
 		config.HostMachineName,
 		config.WatchSettings,
@@ -33,7 +33,7 @@ func main() {
 		fileOps,
 	)
 
-	log.Info().Msg(fmt.Sprintf("starting watcher, webhook url: %s, logfile: %s", config.Slack.WebhookUrl, config.LogFileLocation))
+	log.Info().Msg(fmt.Sprintf("starting watcher, webhook url: %s, logfile: %s", config.Slack.WebhookUrl, config.WatchSettings.LogFileLocation))
 	if err = watcher.Watch(); err != nil {
 		panic(err)
 	}

@@ -12,18 +12,17 @@ const ServicePrefix = "WR"
 type Slack struct {
 	WebhookUrl string `envconfig:"SLACK_WEBHOOK_URL"`
 	Channel    string `envconfig:"SLACK_CHANNEL" default:"#ssh-alerts"`
-	Username   string `envconfig:"SLACK_USERNAME" defaul:"poe-ssh-bot"`
+	Username   string `envconfig:"SLACK_USERNAME" default:"poe-ssh-bot"`
 	Icon       string `envconfig:"SLACK_ICON" default:":ghost:"`
 }
 
 type Config struct {
-	HostMachineName string        `envconfig:"HOST_MACHINE_NAME" required:"true"`
-	Slack           *Slack        `envconfig:"SLACK"`
-	LogFileLocation string        `envconfig:"WATCH_LOGFILE" default:"/var/log/auth.log"`
+	HostMachineName string `split_words:"true" required:"true"`
+	Slack           *Slack
 	WatchSettings   WatchSettings `split_words:"true"`
 	// StateFilePath is location of file that keeps track of the last processed line
 	// by ssh watcher so restarts of the service do not reprocess all ssh history.
-	StateFilePath string `envconfig:"STATE_FILE_PATH" default:"/var/lib/ssh-watcher/authlog-state"`
+	StateFilePath string `split_words:"true" default:"/var/lib/ssh-watcher/authlog-state"`
 }
 
 type WatchSettings struct {
@@ -35,6 +34,8 @@ type WatchSettings struct {
 	FailedLoginInvalidUsername bool `default:"true" split_words:"true"`
 	// SleepInterval is the interval in seconds to sleep between log file reads
 	SleepInterval int `default:"2" split_words:"true"`
+	// LogFileLocation is the location of the log file to watch
+	LogFileLocation string `default:"/var/log/auth.log" split_words:"true"`
 }
 
 func New() (*Config, error) {

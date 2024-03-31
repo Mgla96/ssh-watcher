@@ -24,24 +24,23 @@ const ServicePrefix = "WR"
 ```
 
 <a name="Config"></a>
-## type [Config](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/config/config.go#L19-L27>)
+## type [Config](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/config/config.go#L19-L26>)
 
 
 
 ```go
 type Config struct {
-    HostMachineName string        `envconfig:"HOST_MACHINE_NAME" required:"true"`
-    Slack           *Slack        `envconfig:"SLACK"`
-    LogFileLocation string        `envconfig:"WATCH_LOGFILE" default:"/var/log/auth.log"`
+    HostMachineName string `split_words:"true" required:"true"`
+    Slack           *Slack
     WatchSettings   WatchSettings `split_words:"true"`
     // StateFilePath is location of file that keeps track of the last processed line
     // by ssh watcher so restarts of the service do not reprocess all ssh history.
-    StateFilePath string `envconfig:"STATE_FILE_PATH" default:"/var/lib/ssh-watcher/authlog-state"`
+    StateFilePath string `split_words:"true" default:"/var/lib/ssh-watcher/authlog-state"`
 }
 ```
 
 <a name="New"></a>
-### func [New](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/config/config.go#L40>)
+### func [New](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/config/config.go#L41>)
 
 ```go
 func New() (*Config, error)
@@ -58,13 +57,13 @@ func New() (*Config, error)
 type Slack struct {
     WebhookUrl string `envconfig:"SLACK_WEBHOOK_URL"`
     Channel    string `envconfig:"SLACK_CHANNEL" default:"#ssh-alerts"`
-    Username   string `envconfig:"SLACK_USERNAME" defaul:"poe-ssh-bot"`
+    Username   string `envconfig:"SLACK_USERNAME" default:"poe-ssh-bot"`
     Icon       string `envconfig:"SLACK_ICON" default:":ghost:"`
 }
 ```
 
 <a name="WatchSettings"></a>
-## type [WatchSettings](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/config/config.go#L29-L38>)
+## type [WatchSettings](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/config/config.go#L28-L39>)
 
 
 
@@ -78,6 +77,8 @@ type WatchSettings struct {
     FailedLoginInvalidUsername bool `default:"true" split_words:"true"`
     // SleepInterval is the interval in seconds to sleep between log file reads
     SleepInterval int `default:"2" split_words:"true"`
+    // LogFileLocation is the location of the log file to watch
+    LogFileLocation string `default:"/var/log/auth.log" split_words:"true"`
 }
 ```
 
