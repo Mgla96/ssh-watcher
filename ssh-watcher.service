@@ -7,15 +7,15 @@ User=root
 ExecStart=/path/to/ssh-watcher
 Restart=on-failure
 Environment=GO_ENV=production
-Environment=HOST_MACHINE_NAME=fill-in
-Environment=SLACK_WEBHOOK_URL=fill-in
-Environment=SLACK_CHANNEL=fill-in
-Environment=SLACK_USERNAME=fill-in
-Environment=WATCH_LOGFILE=fill-in
-Environment=WATCH_SETTINGS_ACCEPTED_LOGIN=fill-in
-Environment=WATCH_SETTINGS_FAILED_LOGIN=fill-in
-Environment=WATCH_SETTINGS_FAILED_LOGIN_INVALID_USERNAME=fill-in
-Environment=WATCH_SETTINGS_SLEEP_INTERVAL_SECONDS=fill-in
+Environment=WR_HOST_MACHINE_NAME=fill-in
+Environment=WR_SLACK_WEBHOOK_URL=fill-in
+Environment=WR_SLACK_CHANNEL=fill-in
+Environment=WR_SLACK_USERNAME=fill-in
+Environment=WR_WATCH_SETTINGS_ACCEPTED_LOGIN=fill-in
+Environment=WR_WATCH_SETTINGS_FAILED_LOGIN=fill-in
+Environment=WR_WATCH_SETTINGS_FAILED_LOGIN_INVALID_USERNAME=fill-in
+Environment=WR_WATCH_SETTINGS_SLEEP_INTERVAL_SECONDS=fill-in
+Environment=WR_WATCH_SETTINGS_LOG_FILE_LOCATION=fill-in
 
 [Install]
 WantedBy=multi-user.target
