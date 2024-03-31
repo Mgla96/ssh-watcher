@@ -43,7 +43,7 @@ type file interface {
 	Open(name string) (*os.File, error)
 }
 
-func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker, file file) App {
+func New(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker, file file) App {
 	return App{
 		logFile:              logFile,
 		notifier:             notifier,

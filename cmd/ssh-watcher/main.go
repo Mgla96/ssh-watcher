@@ -24,7 +24,7 @@ func main() {
 	processedLineTracker := linetracker.NewFileProcessedLineTracker(config.StateFilePath)
 
 	fileOps := file.FileOps{}
-	watcher := app.NewApp(
+	watcher := app.New(
 		config.LogFileLocation,
 		notifier,
 		config.HostMachineName,

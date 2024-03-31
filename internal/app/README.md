@@ -9,7 +9,7 @@ import "github.com/mgla96/ssh-watcher/internal/app"
 ## Index
 
 - [type App](<#App>)
-  - [func NewApp\(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker, file file\) App](<#NewApp>)
+  - [func New\(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker, file file\) App](<#New>)
   - [func \(a App\) Watch\(\) error](<#App.Watch>)
 
 
@@ -24,11 +24,11 @@ type App struct {
 }
 ```
 
-<a name="NewApp"></a>
-### func [NewApp](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L46>)
+<a name="New"></a>
+### func [New](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L46>)
 
 ```go
-func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker, file file) App
+func New(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker, file file) App
 ```
 
 
