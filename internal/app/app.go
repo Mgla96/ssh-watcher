@@ -36,13 +36,21 @@ type reader interface {
 	Read(p []byte) (n int, err error)
 }
 
-func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker) App {
+// file is the interface for interacting with the filesystem.
+//
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . file
+type file interface {
+	Open(name string) (*os.File, error)
+}
+
+func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker, file file) App {
 	return App{
 		logFile:              logFile,
 		notifier:             notifier,
 		hostMachine:          hostMachine,
 		watchSettings:        watchSettings,
 		processedLineTracker: processedLineTracker,
+		file:                 file,
 	}
 }
 
@@ -52,6 +60,7 @@ type App struct {
 	hostMachine          string
 	watchSettings        config.WatchSettings
 	processedLineTracker processedLineTracker
+	file                 file
 }
 
 func (a App) shouldSendMessage(eventType notifier.EventType) bool {
@@ -113,9 +122,8 @@ func (a App) processNewLogLines(file reader, lastProcessedLine int) error {
 			if err := a.notifier.Notify(logLine); err != nil {
 				log.Error().Err(err)
 				continue
-			} else {
-				log.Info().Msg("notification message sent")
 			}
+			log.Info().Msg("notification message sent")
 		}
 
 		err := a.processedLineTracker.UpdateLastProcessedLine(lineNumber)
@@ -129,7 +137,7 @@ func (a App) processNewLogLines(file reader, lastProcessedLine int) error {
 
 // TODO(mgottlieb) refactor this into more unit-testable funcs.
 func (a App) Watch() error {
-	file, err := os.Open(a.logFile)
+	file, err := a.file.Open(a.logFile)
 	if err != nil {
 		return fmt.Errorf("error opening log file: %w", err)
 	}
@@ -151,7 +159,7 @@ func (a App) Watch() error {
 			if err := file.Close(); err != nil {
 				return fmt.Errorf("error closing file: %w", err)
 			}
-			file, err = os.Open(a.logFile)
+			file, err = a.file.Open(a.logFile)
 			if err != nil {
 				return fmt.Errorf("error opening file: %w", err)
 			}

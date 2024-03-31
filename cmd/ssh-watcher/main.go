@@ -5,6 +5,7 @@ import (
 
 	"github.com/mgla96/ssh-watcher/internal/app"
 	"github.com/mgla96/ssh-watcher/internal/config"
+	"github.com/mgla96/ssh-watcher/internal/file"
 	"github.com/mgla96/ssh-watcher/internal/linetracker"
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 	"github.com/rs/zerolog"
@@ -21,12 +22,15 @@ func main() {
 
 	notifier := notifier.NewSlackNotifier(config.Slack.WebhookUrl, config.Slack.Channel, config.Slack.Username, config.Slack.Icon)
 	processedLineTracker := linetracker.NewFileProcessedLineTracker(config.StateFilePath)
+
+	fileOps := file.FileOps{}
 	watcher := app.NewApp(
 		config.LogFileLocation,
 		notifier,
 		config.HostMachineName,
 		config.WatchSettings,
 		processedLineTracker,
+		fileOps,
 	)
 
 	log.Info().Msg(fmt.Sprintf("starting watcher, webhook url: %s, logfile: %s", config.Slack.WebhookUrl, config.LogFileLocation))
