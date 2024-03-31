@@ -34,7 +34,7 @@ func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSe
 
 
 <a name="App.Watch"></a>
-### func \(App\) [Watch](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L139>)
+### func \(App\) [Watch](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L147>)
 
 ```go
 func (a App) Watch() error

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"reflect"
 	"testing"
@@ -245,6 +246,138 @@ func TestApp_processNewLogLines(t *testing.T) {
 			}
 			if err := a.processNewLogLines(tt.args.file, tt.args.lastProcessedLine); (err != nil) != tt.wantErr {
 				t.Errorf("App.processNewLogLines() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestApp_processLine(t *testing.T) {
+	type fields struct {
+		logFile              string
+		notifier             notifierClient
+		hostMachine          string
+		watchSettings        config.WatchSettings
+		processedLineTracker processedLineTracker
+		file                 file
+	}
+	type args struct {
+		line       string
+		lineNumber int
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "happy path",
+			fields: fields{
+				notifier: &appfakes.FakeNotifierClient{
+					NotifyStub: func(notifier.LogLine) error {
+						return nil
+					},
+				},
+				processedLineTracker: &appfakes.FakeProcessedLineTracker{
+					UpdateLastProcessedLineStub: func(int) error {
+						return nil
+					},
+				},
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             true,
+					FailedLogins:               true,
+					FailedLoginInvalidUsername: true,
+				},
+			},
+			args: args{
+				line:       "Mar 30 00:00:00 foo sshd[5052]: Invalid user foo from x.x.x.x port xxx",
+				lineNumber: 1,
+			},
+			wantErr: false,
+		},
+		{
+			name: "shouldn't send failed login message",
+			fields: fields{
+				notifier: &appfakes.FakeNotifierClient{
+					NotifyStub: func(notifier.LogLine) error {
+						return nil
+					},
+				},
+				processedLineTracker: &appfakes.FakeProcessedLineTracker{
+					UpdateLastProcessedLineStub: func(int) error {
+						return nil
+					},
+				},
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             true,
+					FailedLogins:               true,
+					FailedLoginInvalidUsername: false,
+				},
+			},
+			args: args{
+				line:       "Mar 30 00:00:00 foo sshd[5052]: Invalid user foo from x.x.x.x port xxx",
+				lineNumber: 1,
+			},
+			wantErr: false,
+		},
+		{
+			name: "error notifying",
+			fields: fields{
+				notifier: &appfakes.FakeNotifierClient{
+					NotifyStub: func(notifier.LogLine) error {
+						return fmt.Errorf("error notifying")
+					},
+				},
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             true,
+					FailedLogins:               true,
+					FailedLoginInvalidUsername: true,
+				},
+			},
+			args: args{
+				line:       "Mar 30 00:00:00 foo sshd[5052]: Invalid user foo from x.x.x.x port xxx",
+				lineNumber: 1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "error updating last processed line",
+			fields: fields{
+				notifier: &appfakes.FakeNotifierClient{
+					NotifyStub: func(notifier.LogLine) error {
+						return nil
+					},
+				},
+				processedLineTracker: &appfakes.FakeProcessedLineTracker{
+					UpdateLastProcessedLineStub: func(int) error {
+						return fmt.Errorf("error updating last processed line")
+					},
+				},
+				watchSettings: config.WatchSettings{
+					AcceptedLogins:             true,
+					FailedLogins:               true,
+					FailedLoginInvalidUsername: true,
+				},
+			},
+			args: args{
+				line:       "Mar 30 00:00:00 foo sshd[5052]: Invalid user foo from x.x.x.x port xxx",
+				lineNumber: 1,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := App{
+				logFile:              tt.fields.logFile,
+				notifier:             tt.fields.notifier,
+				hostMachine:          tt.fields.hostMachine,
+				watchSettings:        tt.fields.watchSettings,
+				processedLineTracker: tt.fields.processedLineTracker,
+				file:                 tt.fields.file,
+			}
+			if err := a.processLine(tt.args.line, tt.args.lineNumber); (err != nil) != tt.wantErr {
+				t.Errorf("App.processLine() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

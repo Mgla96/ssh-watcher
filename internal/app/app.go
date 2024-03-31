@@ -107,6 +107,25 @@ func (a App) parseLogLine(line string) notifier.LogLine {
 	return logLine
 }
 
+func (a App) processLine(line string, lineNumber int) error {
+	logLine := a.parseLogLine(line)
+	if !a.shouldSendMessage(logLine.EventType) {
+		return nil
+	}
+
+	if err := a.notifier.Notify(logLine); err != nil {
+		return fmt.Errorf("error sending notification: %w", err)
+	}
+
+	log.Info().Msg("notification message sent")
+	err := a.processedLineTracker.UpdateLastProcessedLine(lineNumber)
+	if err != nil {
+		log.Error().Err(err)
+		return fmt.Errorf("%v: %w", "failed updating last processed line", err)
+	}
+	return nil
+}
+
 func (a App) processNewLogLines(file reader, lastProcessedLine int) error {
 	scanner := bufio.NewScanner(file)
 	for lineNumber := 0; scanner.Scan(); lineNumber++ {
@@ -116,20 +135,9 @@ func (a App) processNewLogLines(file reader, lastProcessedLine int) error {
 		}
 
 		line := scanner.Text()
-		logLine := a.parseLogLine(line)
-
-		if a.shouldSendMessage(logLine.EventType) {
-			if err := a.notifier.Notify(logLine); err != nil {
-				log.Error().Err(err)
-				continue
-			}
-			log.Info().Msg("notification message sent")
-		}
-
-		err := a.processedLineTracker.UpdateLastProcessedLine(lineNumber)
-		if err != nil {
+		if err := a.processLine(line, lineNumber); err != nil {
 			log.Error().Err(err)
-			return fmt.Errorf("%v: %w", "failed updating last processed line", err)
+			return fmt.Errorf("error processing line: %w", err)
 		}
 	}
 	return nil
