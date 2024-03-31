@@ -9,7 +9,7 @@ import (
 // ServicePrefix - app specific env vars have this prefix.
 const ServicePrefix = "WR"
 
-type SlackConfig struct {
+type Slack struct {
 	WebhookUrl string `envconfig:"SLACK_WEBHOOK_URL"`
 	Channel    string `envconfig:"SLACK_CHANNEL" default:"#ssh-alerts"`
 	Username   string `envconfig:"SLACK_USERNAME" defaul:"poe-ssh-bot"`
@@ -18,7 +18,7 @@ type SlackConfig struct {
 
 type Config struct {
 	HostMachineName string        `envconfig:"HOST_MACHINE_NAME" required:"true"`
-	Slack           *SlackConfig  `envconfig:"SLACK"`
+	Slack           *Slack        `envconfig:"SLACK"`
 	LogFileLocation string        `envconfig:"WATCH_LOGFILE" default:"/var/log/auth.log"`
 	WatchSettings   WatchSettings `split_words:"true"`
 	// StateFilePath is location of file that keeps track of the last processed line

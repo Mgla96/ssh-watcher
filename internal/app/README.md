@@ -14,7 +14,7 @@ import "github.com/mgla96/ssh-watcher/internal/app"
 
 
 <a name="App"></a>
-## type [App](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L42-L48>)
+## type [App](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L49-L55>)
 
 
 
@@ -25,7 +25,7 @@ type App struct {
 ```
 
 <a name="NewApp"></a>
-### func [NewApp](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L32>)
+### func [NewApp](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L39>)
 
 ```go
 func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker) App
@@ -34,7 +34,7 @@ func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSe
 
 
 <a name="App.Watch"></a>
-### func \(App\) [Watch](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L124>)
+### func \(App\) [Watch](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/app/app.go#L131>)
 
 ```go
 func (a App) Watch() error

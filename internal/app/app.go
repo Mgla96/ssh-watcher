@@ -29,6 +29,13 @@ type processedLineTracker interface {
 	UpdateLastProcessedLine(lineNumber int) error
 }
 
+// reader is the interface that wraps the basic Read method.
+//
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . reader
+type reader interface {
+	Read(p []byte) (n int, err error)
+}
+
 func NewApp(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker) App {
 	return App{
 		logFile:              logFile,
@@ -91,7 +98,7 @@ func (a App) parseLogLine(line string) notifier.LogLine {
 	return logLine
 }
 
-func (a App) processNewLogLines(file *os.File, lastProcessedLine int) error {
+func (a App) processNewLogLines(file reader, lastProcessedLine int) error {
 	scanner := bufio.NewScanner(file)
 	for lineNumber := 0; scanner.Scan(); lineNumber++ {
 		// TODO(mgottlieb) we do not need to scan from very beginning line every time.

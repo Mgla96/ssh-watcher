@@ -11,7 +11,7 @@ import "github.com/mgla96/ssh-watcher/internal/config"
 - [Constants](<#constants>)
 - [type Config](<#Config>)
   - [func New\(\) \(\*Config, error\)](<#New>)
-- [type SlackConfig](<#SlackConfig>)
+- [type Slack](<#Slack>)
 - [type WatchSettings](<#WatchSettings>)
 
 
@@ -31,7 +31,7 @@ const ServicePrefix = "WR"
 ```go
 type Config struct {
     HostMachineName string        `envconfig:"HOST_MACHINE_NAME" required:"true"`
-    Slack           *SlackConfig  `envconfig:"SLACK"`
+    Slack           *Slack        `envconfig:"SLACK"`
     LogFileLocation string        `envconfig:"WATCH_LOGFILE" default:"/var/log/auth.log"`
     WatchSettings   WatchSettings `split_words:"true"`
     // StateFilePath is location of file that keeps track of the last processed line
@@ -49,13 +49,13 @@ func New() (*Config, error)
 
 
 
-<a name="SlackConfig"></a>
-## type [SlackConfig](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/config/config.go#L12-L17>)
+<a name="Slack"></a>
+## type [Slack](<https://github.com/Mgla96/ssh-watcher/blob/main/internal/config/config.go#L12-L17>)
 
 
 
 ```go
-type SlackConfig struct {
+type Slack struct {
     WebhookUrl string `envconfig:"SLACK_WEBHOOK_URL"`
     Channel    string `envconfig:"SLACK_CHANNEL" default:"#ssh-alerts"`
     Username   string `envconfig:"SLACK_USERNAME" defaul:"poe-ssh-bot"`
