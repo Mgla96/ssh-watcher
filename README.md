@@ -12,7 +12,7 @@ This project is still a work in progress.
 
 Currently, `ssh-watcher` supports only the `AMD64` architecture, although binaries for other architectures can be built in the future. The binary to run ssh-watcher can be found under the `Assets` section of a release. To programmatically download the binary, follow the instructions below:
 
-Downloading latest version of ssh-watcher. To download the latest version, you need `curl` and `jq` installed on your system.
+Downloading latest version of ssh-watcher. To download the latest version with the provided command, you need `curl` and `jq` installed on your system.
 
 ```bash
 curl -L $(curl -s https://api.github.com/repos/Mgla96/ssh-watcher/releases/latest | \
