@@ -20,7 +20,7 @@ func main() {
 		panic(err)
 	}
 
-	notifier := notifier.NewSlackNotifier(config.Slack.WebhookUrl, config.Slack.Channel, config.Slack.Username, config.Slack.Icon)
+	notifier := notifier.NewSlackNotifier(config.Slack.WebhookUrl, config.Slack.Channel, config.Slack.Username, config.Slack.Icon, log.Logger)
 	processedLineTracker := linetracker.NewFileProcessedLineTracker(config.StateFilePath)
 
 	fileOps := file.FileOps{}
