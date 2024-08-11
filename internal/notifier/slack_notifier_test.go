@@ -23,7 +23,24 @@ func TestNewSlackNotifier(t *testing.T) {
 		args args
 		want SlackNotifier
 	}{
-		// TODO: Add test cases.
+		{
+			name: "create slack notifier",
+			args: args{
+				webhookURL:    "http://localhost",
+				slackChannel:  "test",
+				slackUsername: "foobar",
+				slackIcon:     ":ghost:",
+				log:           zerolog.Nop(),
+			},
+			want: SlackNotifier{
+				WebhookURL:    "http://localhost",
+				SlackChannel:  "test",
+				SlackUsername: "foobar",
+				SlackIcon:     ":ghost:",
+				HttpClient:    &http.Client{},
+				log:           zerolog.Nop(),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -69,10 +86,10 @@ func TestSlackNotifier_Notify(t *testing.T) {
 			args: args{
 				logLine: LogLine{
 					Username:    "test",
-					IpAddress:   "",
-					LoginTime:   "",
-					EventType:   "",
-					HostMachine: "",
+					IpAddress:   "1.2.3.4",
+					LoginTime:   "Dec 1",
+					EventType:   LoggedIn,
+					HostMachine: "foobar",
 				},
 			},
 			wantErr: true,
@@ -104,10 +121,10 @@ func TestSlackNotifier_Notify(t *testing.T) {
 			args: args{
 				logLine: LogLine{
 					Username:    "test",
-					IpAddress:   "",
-					LoginTime:   "",
-					EventType:   "",
-					HostMachine: "",
+					IpAddress:   "1.2.3.4",
+					LoginTime:   "Dec 1",
+					EventType:   LoggedIn,
+					HostMachine: "foobar",
 				},
 			},
 			wantErr: true,
@@ -139,10 +156,10 @@ func TestSlackNotifier_Notify(t *testing.T) {
 			args: args{
 				logLine: LogLine{
 					Username:    "test",
-					IpAddress:   "",
-					LoginTime:   "",
-					EventType:   "",
-					HostMachine: "",
+					IpAddress:   "1.2.3.4",
+					LoginTime:   "Dec 1",
+					EventType:   LoggedIn,
+					HostMachine: "foobar",
 				},
 			},
 			wantErr: false,
