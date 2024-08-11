@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 	"testing"
@@ -95,7 +96,7 @@ func TestSlackNotifier_Notify(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "unsuccessful status code",
+			name: "bad request",
 			fields: fields{
 				WebhookURL:    "http://localhost",
 				SlackChannel:  "test",
@@ -110,7 +111,42 @@ func TestSlackNotifier_Notify(t *testing.T) {
 									return nil
 								},
 								ReadStub: func(p []byte) (n int, err error) {
-									return 0, nil
+									return 0, io.EOF
+								},
+							},
+						}, nil
+					},
+				},
+				log: zerolog.Nop(),
+			},
+			args: args{
+				logLine: LogLine{
+					Username:    "test",
+					IpAddress:   "1.2.3.4",
+					LoginTime:   "Dec 1",
+					EventType:   LoggedIn,
+					HostMachine: "foobar",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "error reading response body",
+			fields: fields{
+				WebhookURL:    "http://localhost",
+				SlackChannel:  "test",
+				SlackUsername: "foobar",
+				SlackIcon:     ":ghost:",
+				HttpClient: &notifierfakes.FakeHTTPClient{
+					DoStub: func(req *http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Body: &notifierfakes.FakeReadCloser{
+								CloseStub: func() error {
+									return nil
+								},
+								ReadStub: func(p []byte) (n int, err error) {
+									return 0, io.ErrUnexpectedEOF
 								},
 							},
 						}, nil
@@ -145,7 +181,7 @@ func TestSlackNotifier_Notify(t *testing.T) {
 									return nil
 								},
 								ReadStub: func(p []byte) (n int, err error) {
-									return 0, nil
+									return 0, io.EOF
 								},
 							},
 						}, nil
