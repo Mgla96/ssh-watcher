@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"io"
 	"reflect"
 	"testing"
 
@@ -179,73 +178,6 @@ func Test_parseLogLine(t *testing.T) {
 			w := App{}
 			if got := w.parseLogLine(tt.args.line); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parseLogLine() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestApp_processNewLogLines(t *testing.T) {
-	type fields struct {
-		logFile              string
-		notifier             notifierClient
-		hostMachine          string
-		watchSettings        config.WatchSettings
-		processedLineTracker processedLineTracker
-	}
-	type args struct {
-		file              reader
-		lastProcessedLine int
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name:   "process log file with no lines",
-			fields: fields{},
-			args: args{
-				file: &appfakes.FakeReader{
-					ReadStub: func([]byte) (int, error) {
-						return 0, io.EOF
-					},
-				},
-				lastProcessedLine: 0,
-			},
-			wantErr: false,
-		},
-		{
-			name: "happy path",
-			fields: fields{
-				notifier: &appfakes.FakeNotifierClient{
-					NotifyStub: func(notifier.LogLine) error {
-						return nil
-					},
-				},
-			},
-			args: args{
-				file: &appfakes.FakeReader{
-					ReadStub: func([]byte) (int, error) {
-						return 1, nil
-					},
-				},
-				lastProcessedLine: 5,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := App{
-				logFile:              tt.fields.logFile,
-				notifier:             tt.fields.notifier,
-				hostMachine:          tt.fields.hostMachine,
-				watchSettings:        tt.fields.watchSettings,
-				processedLineTracker: tt.fields.processedLineTracker,
-			}
-			if err := a.processNewLogLines(tt.args.file, tt.args.lastProcessedLine); (err != nil) != tt.wantErr {
-				t.Errorf("App.processNewLogLines() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

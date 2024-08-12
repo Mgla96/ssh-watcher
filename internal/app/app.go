@@ -1,13 +1,11 @@
 package app
 
 import (
-	"bufio"
 	"fmt"
-	"io/fs"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/hpcloud/tail"
 	"github.com/mgla96/ssh-watcher/internal/config"
 	"github.com/mgla96/ssh-watcher/internal/notifier"
 
@@ -126,76 +124,15 @@ func (a App) processLine(line string, lineNumber int) error {
 	return nil
 }
 
-func (a App) processNewLogLines(file reader, lastProcessedLine int) error {
-	scanner := bufio.NewScanner(file)
-	for lineNumber := 0; scanner.Scan(); lineNumber++ {
-		// TODO(mgottlieb) we do not need to scan from very beginning line every time.
-		if lineNumber <= lastProcessedLine {
-			continue
-		}
-
-		line := scanner.Text()
-		if err := a.processLine(line, lineNumber); err != nil {
-			log.Error().Err(err)
+func (a App) Watch() error {
+	t, err := tail.TailFile(a.logFile, tail.Config{Follow: true})
+	if err != nil {
+		return fmt.Errorf("error tailing file: %w", err)
+	}
+	for line := range t.Lines {
+		if err := a.processLine(line.Text, 0); err != nil {
 			return fmt.Errorf("error processing line: %w", err)
 		}
 	}
 	return nil
-}
-
-// TODO(mgottlieb) refactor this into more unit-testable funcs.
-func (a App) Watch() error {
-	file, err := a.file.Open(a.logFile)
-	if err != nil {
-		return fmt.Errorf("error opening log file: %w", err)
-	}
-	defer file.Close()
-
-	var lastProcessedOffset int64 = 0
-	lastFileInfo, err := file.Stat()
-	if err != nil {
-		return fmt.Errorf("error returning last file info: %w", err)
-	}
-
-	for {
-		stat, err := file.Stat()
-		if err != nil {
-			return fmt.Errorf("error returning file info: %w", err)
-		}
-		// TODO(mgottlieb) check log rotation.
-		if isLogRotated(stat, lastFileInfo) {
-			if err := file.Close(); err != nil {
-				return fmt.Errorf("error closing file: %w", err)
-			}
-			file, err = a.file.Open(a.logFile)
-			if err != nil {
-				return fmt.Errorf("error opening file: %w", err)
-			}
-			stat, err = file.Stat()
-			if err != nil {
-				return fmt.Errorf("error returning file info when log rotated: %w", err)
-			}
-			lastProcessedOffset = 0
-			lastFileInfo = stat
-		}
-
-		if stat.Size() > lastProcessedOffset {
-			lastProcessedLine, err := a.processedLineTracker.GetLastProcessedLine()
-			if err != nil {
-				return fmt.Errorf("error getting last processed line: %w", err)
-			}
-
-			err = a.processNewLogLines(file, lastProcessedLine)
-			if err != nil {
-				return fmt.Errorf("error processing new log lines: %w", err)
-			}
-			lastProcessedOffset = stat.Size()
-		}
-
-		time.Sleep(time.Duration(a.watchSettings.SleepInterval) * time.Second)
-	}
-}
-
-func isLogRotated(currentFileInfo fs.FileInfo, lastFileInfo fs.FileInfo) bool {
-	return !os.SameFile(currentFileInfo, lastFileInfo)
 }
