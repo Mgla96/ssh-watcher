@@ -3,8 +3,10 @@ package app
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/mgla96/ssh-watcher/internal/app/appfakes"
 	"github.com/mgla96/ssh-watcher/internal/config"
@@ -234,6 +236,59 @@ func TestApp_processNewLogLines(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		// {
+		// 	name: "process multiple lines, skipping initial ones",
+		// 	fields: fields{
+		// 		notifier: &appfakes.FakeNotifierClient{
+		// 			NotifyStub: func(notifier.LogLine) error {
+		// 				return nil
+		// 			},
+		// 		},
+		// 		processedLineTracker: &appfakes.FakeProcessedLineTracker{
+		// 			UpdateLastProcessedLineStub: func(int) error {
+		// 				return nil
+		// 			},
+		// 		},
+		// 	},
+		// 	args: args{
+		// 		file: &appfakes.FakeReader{
+		// 			ReadStub: func(p []byte) (int, error) {
+		// 				switch callCount {
+		// 				case 0:
+		// 					copy(p, "line1\n")
+		// 					return len("line1\n"), nil
+		// 				case 1:
+		// 					copy(p, "line2\n")
+		// 					return len("line2\n"), nil
+		// 				case 2:
+		// 					return 0, io.EOF
+		// 				}
+		// 				return 0, io.EOF
+		// 			},
+		// 		},
+		// 		lastProcessedLine: 0,
+		// 	},
+		// 	wantErr: false,
+		// },
+		{
+			name: "error from processLine",
+			fields: fields{
+				notifier: &appfakes.FakeNotifierClient{
+					NotifyStub: func(notifier.LogLine) error {
+						return fmt.Errorf("notify error")
+					},
+				},
+			},
+			args: args{
+				file: &appfakes.FakeReader{
+					ReadStub: func([]byte) (int, error) {
+						return 1, nil
+					},
+				},
+				lastProcessedLine: 1,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -378,6 +433,100 @@ func TestApp_processLine(t *testing.T) {
 			}
 			if err := a.processLine(tt.args.line, tt.args.lineNumber); (err != nil) != tt.wantErr {
 				t.Errorf("App.processLine() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	fakeNotifier := &appfakes.FakeNotifierClient{}
+	fakeFile := &appfakes.FakeFile{}
+
+	type args struct {
+		logFile              string
+		notifier             notifierClient
+		hostMachine          string
+		watchSettings        config.WatchSettings
+		processedLineTracker processedLineTracker
+		file                 file
+	}
+	tests := []struct {
+		name string
+		args args
+		want App
+	}{
+		{
+			name: "create app happy path",
+			args: args{
+				logFile:       "foo",
+				notifier:      fakeNotifier,
+				hostMachine:   "bar",
+				watchSettings: config.WatchSettings{},
+				file:          fakeFile,
+			},
+			want: App{
+				logFile:       "foo",
+				notifier:      fakeNotifier,
+				hostMachine:   "bar",
+				watchSettings: config.WatchSettings{},
+				file:          fakeFile,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := New(tt.args.logFile, tt.args.notifier, tt.args.hostMachine, tt.args.watchSettings, tt.args.processedLineTracker, tt.args.file); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("New() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_isLogRotated(t *testing.T) {
+	timeA := time.Now()
+
+	fileInfoA := &appfakes.FakeFileInfo{
+		IsDirStub: func() bool {
+			return false
+		},
+		ModTimeStub: func() time.Time {
+			return timeA
+		},
+		NameStub: func() string {
+			return "foo"
+		},
+		ModeStub: func() fs.FileMode {
+			return 0644
+		},
+		SizeStub: func() int64 {
+			return 100
+		},
+		SysStub: func() any {
+			return nil
+		},
+	}
+	type args struct {
+		currentFileInfo fs.FileInfo
+		lastFileInfo    fs.FileInfo
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "log not rotated",
+			args: args{
+				currentFileInfo: fileInfoA,
+				lastFileInfo:    fileInfoA,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isLogRotated(tt.args.currentFileInfo, tt.args.lastFileInfo); got != tt.want {
+				t.Errorf("isLogRotated() = %v, want %v", got, tt.want)
 			}
 		})
 	}

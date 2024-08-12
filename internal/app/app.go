@@ -43,6 +43,11 @@ type file interface {
 	Open(name string) (*os.File, error)
 }
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . fileInfo
+type fileInfo interface {
+	fs.FileInfo
+}
+
 func New(logFile string, notifier notifierClient, hostMachine string, watchSettings config.WatchSettings, processedLineTracker processedLineTracker, file file) App {
 	return App{
 		logFile:              logFile,
