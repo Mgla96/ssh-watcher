@@ -1,6 +1,9 @@
 # ssh-watcher
 
 [![Run Tests](https://github.com/Mgla96/ssh-watcher/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/Mgla96/ssh-watcher/actions/workflows/main.yml)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Mgla96/ssh-watcher)](https://goreportcard.com/report/github.com/Mgla96/ssh-watcher)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/mgla96/ssh-watcher?sort=semver)
 
 **SSH Watcher** monitors SSH logs and sends alerts to Slack for quick incident response. It is open for extension to send alerts to other notification services beyond Slack.
 
